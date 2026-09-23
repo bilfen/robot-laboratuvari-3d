@@ -24,6 +24,22 @@ class SensorLaboratory {
             left: false,
             right: false
         };
+
+        // İvmelenme / yavaşlama hız vektörü
+        this.velocity = { forward: 0, turn: 0 };
+        this.DRIVE_ACCEL = 0.008;       // İvmelenme katsayısı
+        this.DRIVE_DECEL = 0.92;        // Yavaşlama çarpanı (sürtünme)
+        this.MAX_SPEED = 0.15;          // Maksimum ileri hız
+        this.MAX_REVERSE = 0.105;       // Maksimum geri hız (0.15 * 0.7)
+        this.TURN_SPEED = 0.02;         // Dönüş hızı daha da yavaşlatıldı
+        this.TURN_DECEL = 0.85;         // Dönüş yavaşlaması (daha çabuk durması için)
+
+        // Zıplama Fizikleri
+        this.isJumping = false;
+        this.verticalVelocity = 0;
+        this.GRAVITY = -0.015;
+        this.JUMP_FORCE = 0.25;
+
         this.isHeadlightsOn = false;
 
         // 6 İstasyonun Bilgileri, Konumları ve Öğrenci Yönergeleri
@@ -33,7 +49,7 @@ class SensorLaboratory {
                 name: '1. Mesafe & Engel Parkuru',
                 icon: '📏',
                 pos: new THREE.Vector3(0, 0, 0),
-                camOffset: new THREE.Vector3(0, 2.5, 6.5),
+                camOffset: new THREE.Vector3(0, 2.0, 5.5),
                 title: 'Mesafe Sensörü Test İstasyonu',
                 purpose: 'Mesafe sensörleri, robotların önlerindeki engelleri ve duvarları görmesini, kazaları önlemesini sağlar.',
                 steps: [
@@ -50,7 +66,7 @@ class SensorLaboratory {
                 name: '2. Karanlık Işık Tüneli',
                 icon: '🌙',
                 pos: new THREE.Vector3(14, 0, 0),
-                camOffset: new THREE.Vector3(0, 2.5, 6.5),
+                camOffset: new THREE.Vector3(3, 1.5, 4.5),
                 title: 'Işık Sensörü (LDR) Test İstasyonu',
                 purpose: 'Işık sensörleri çevredeki aydınlık miktarını ölçer. Gece veya tünellerde otomatik farların yanmasını sağlar.',
                 steps: [
@@ -67,7 +83,7 @@ class SensorLaboratory {
                 name: '3. Isı & İklim Odası',
                 icon: '🔥',
                 pos: new THREE.Vector3(14, 0, 14),
-                camOffset: new THREE.Vector3(0, 2.5, 6.5),
+                camOffset: new THREE.Vector3(0, 3.0, 5.0),
                 title: 'Isı Sensörü Test İstasyonu',
                 purpose: 'Isı sensörleri robotun motorlarının ve çiplerinin aşırı ısınıp bozulmasını engeller.',
                 steps: [
@@ -84,7 +100,7 @@ class SensorLaboratory {
                 name: '4. Ses & Akustik Sahnesi',
                 icon: '📣',
                 pos: new THREE.Vector3(0, 0, 14),
-                camOffset: new THREE.Vector3(0, 2.5, 6.5),
+                camOffset: new THREE.Vector3(2, 2.0, 5.5),
                 title: 'Ses Sensörü (Mikrofon) Test İstasyonu',
                 purpose: 'Ses sensörleri ortamdaki alkış, konuşma ve müzik gibi ses dalgalarını algılar.',
                 steps: [
@@ -101,7 +117,7 @@ class SensorLaboratory {
                 name: '5. Hareket Takip Pisti',
                 icon: '🏃',
                 pos: new THREE.Vector3(-14, 0, 14),
-                camOffset: new THREE.Vector3(0, 2.5, 6.5),
+                camOffset: new THREE.Vector3(-3, 2.5, 5.0),
                 title: 'Hareket Sensörü (PIR) Test İstasyonu',
                 purpose: 'Hareket sensörleri önünden geçen insan, hayvan veya araçları anında fark eder.',
                 steps: [
@@ -118,7 +134,7 @@ class SensorLaboratory {
                 name: '6. Renk Seçim Meydanı',
                 icon: '🔵',
                 pos: new THREE.Vector3(-14, 0, 0),
-                camOffset: new THREE.Vector3(0, 2.5, 6.5),
+                camOffset: new THREE.Vector3(0, 2.0, 4.5),
                 title: 'RGB Renk Sensörü Test İstasyonu',
                 purpose: 'Renk sensörleri fabrikalarda ürünleri renklerine göre ayırır ve robotun doğru hedefi bulmasını sağlar.',
                 steps: [
@@ -141,6 +157,7 @@ class SensorLaboratory {
         this.movingCharacter = null;
         this.colorTargets = [];
         this.heatParticles = [];
+        this.dustParticles = []; // Toz ve duman efektleri için
         this.tunnelMesh = null;
 
         this.ambientLightRef = null;
@@ -149,6 +166,17 @@ class SensorLaboratory {
         this.isDancing = false;
         this.isSleeping = false;
         this.isShivering = false;
+
+        // Yumuşak kamera geçiş sistemi
+        this.cameraTransition = {
+            active: false,
+            startPos: new THREE.Vector3(),
+            targetPos: new THREE.Vector3(),
+            startTarget: new THREE.Vector3(),
+            endTarget: new THREE.Vector3(),
+            progress: 0,
+            duration: 1.2  // saniye
+        };
 
         this.build3DTestPark();
     }
@@ -186,6 +214,16 @@ class SensorLaboratory {
             mesh.position.set(r.x, -1.39, r.z);
             mesh.receiveShadow = true;
             this.parkGroup.add(mesh);
+
+            // Neon Yön Okları (Holografik)
+            if (r.w > r.h) { // Yatay yol
+                const arrowGeo = new THREE.PlaneGeometry(2, 1);
+                arrowGeo.rotateX(-Math.PI / 2);
+                const arrowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6 });
+                const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+                arrow.position.set(r.x, -1.37, r.z);
+                this.parkGroup.add(arrow);
+            }
         });
 
         // Yol çizgileri (Sarı kesikli şeritler)
@@ -198,6 +236,14 @@ class SensorLaboratory {
             line.position.set(x, -1.38, 0);
             this.parkGroup.add(line);
         }
+
+        // Teknolojik Laboratuvar Zemin Izgarası (Grid)
+        // Bu ızgara hareket ederken hız algısını çok artırır!
+        const gridHelper = new THREE.GridHelper(50, 50, 0x1e293b, 0x1e293b);
+        gridHelper.position.y = -1.395;
+        gridHelper.material.opacity = 0.2;
+        gridHelper.material.transparent = true;
+        this.parkGroup.add(gridHelper);
 
         // İstasyon Zemin Platformları (Daire Podlar)
         this.stations.forEach((st, idx) => {
@@ -212,16 +258,91 @@ class SensorLaboratory {
             pod.receiveShadow = true;
             this.parkGroup.add(pod);
 
+            // İstasyon Etrafı Bilim Kurgu Hologram Bariyeri
+            const holoGeo = new THREE.CylinderGeometry(3.6, 3.6, 0.8, 32, 1, true);
+            const holoMat = new THREE.MeshBasicMaterial({ 
+                color: podColors[idx % podColors.length], 
+                transparent: true, 
+                opacity: 0.15,
+                side: THREE.DoubleSide,
+                wireframe: true
+            });
+            const holoRing = new THREE.Mesh(holoGeo, holoMat);
+            holoRing.position.set(st.pos.x, -1.0, st.pos.z);
+            this.parkGroup.add(holoRing);
+
             // İstasyon Numarası Tabela Direği
             const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.2, 12);
             const pole = new THREE.Mesh(poleGeo, new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.6 }));
             pole.position.set(st.pos.x - 2.8, 0.2, st.pos.z - 2.8);
             this.parkGroup.add(pole);
 
-            // Tabela Kutusu
-            const signGeo = new THREE.BoxGeometry(1.4, 0.9, 0.15);
-            const sign = new THREE.Mesh(signGeo, new THREE.MeshStandardMaterial({ color: 0xffd34e }));
+            // Tabela Kutusu ve Dinamik Canvas Texture Oluşturma
+            const signGeo = new THREE.BoxGeometry(1.6, 1.0, 0.15);
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            // Arka plan
+            ctx.fillStyle = '#fffdf7';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Kenarlık
+            ctx.strokeStyle = '#ff735c';
+            ctx.lineWidth = 16;
+            ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+            
+            // İkon
+            ctx.font = '72px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(st.icon, 80, canvas.height / 2);
+            
+            // Başlık
+            ctx.fillStyle = '#17233a';
+            ctx.font = 'bold 32px "Fredoka", sans-serif';
+            ctx.textAlign = 'left';
+            const title = st.name.split('.')[1] ? st.name.split('.')[1].trim() : st.name;
+            ctx.fillText(title, 140, 70);
+            
+            // Görev Özeti (İlk cümleyi al)
+            ctx.font = 'bold 22px "Fredoka", sans-serif';
+            ctx.fillStyle = '#516079';
+            const shortPurpose = st.purpose.split('.')[0] + '.';
+            const words = shortPurpose.split(' ');
+            let line = '';
+            let y = 130;
+            for(let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if(metrics.width > 340 && n > 0) {
+                    ctx.fillText(line, 140, y);
+                    line = words[n] + ' ';
+                    y += 32;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, 140, y);
+            
+            const signTexture = new THREE.CanvasTexture(canvas);
+            
+            // Sadece ön yüze texture, diğer yüzlere düz renk
+            const signMaterials = [
+                new THREE.MeshStandardMaterial({ color: 0xffd34e }), // Sağ
+                new THREE.MeshStandardMaterial({ color: 0xffd34e }), // Sol
+                new THREE.MeshStandardMaterial({ color: 0xffd34e }), // Üst
+                new THREE.MeshStandardMaterial({ color: 0xffd34e }), // Alt
+                new THREE.MeshStandardMaterial({ map: signTexture }), // Ön
+                new THREE.MeshStandardMaterial({ color: 0xffd34e })  // Arka
+            ];
+            
+            const sign = new THREE.Mesh(signGeo, signMaterials);
             sign.position.set(st.pos.x - 2.8, 1.8, st.pos.z - 2.8);
+            sign.rotation.y = Math.PI / 4; // Robotun geliş yönüne doğru hafif çapraz baksın
+            
             this.parkGroup.add(sign);
         });
 
@@ -304,6 +425,46 @@ class SensorLaboratory {
     // ===================================================
     // İSTASYON GEZİNTİSİ & YUMUŞAK HAREKET (NAVIGATION)
     // ===================================================
+
+    // Garajdan 1. İstasyona Sinematik Geçiş
+    runToPark() {
+        this.currentStationIndex = 0;
+        const targetSt = this.stations[0];
+        
+        // Robot zaten Z: -30'da (Garajda). Yüzünü parkura dönelim.
+        this.builder.robotGroup.rotation.set(0, 0, 0);
+
+        this.isTravelling = true;
+        this.travelProgress = 0;
+        
+        // travelStartPos garaj, travelTargetPos 1. istasyon
+        this.travelStartPos = new THREE.Vector3(0, 0, -30);
+        this.travelTargetPos = targetSt.pos.clone();
+        
+        // Kamera Geçişi: Kamerayı yavaşça garajdan istasyonun arkasına uçur
+        const finalCamPos = targetSt.pos.clone().add(targetSt.camOffset);
+        this.startCameraTransition(
+            window.app.camera.position.clone(),
+            finalCamPos,
+            window.app.controls.target.clone(),
+            targetSt.pos.clone()
+        );
+        this.cameraTransition.duration = 2.5; // Koşuya uygun uzun süre
+    }
+
+    jump() {
+        if (!this.isJumping && !this.isTravelling && this.builder && this.builder.robotGroup) {
+            this.isJumping = true;
+            this.verticalVelocity = this.JUMP_FORCE;
+            if (window.KidAudio) window.KidAudio.playSnap(); // Zıplama sesi olarak snap kullanılıyor
+        }
+    }
+
+    // Easing fonksiyonu: doğal ivmelenme-yavaşlama hissi
+    easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
     startParkTour(stationIndex = 0) {
         this.currentStationIndex = stationIndex;
         const targetSt = this.stations[this.currentStationIndex];
@@ -314,13 +475,46 @@ class SensorLaboratory {
             this.builder.robotGroup.rotation.set(0, 0, 0);
         }
 
-        // Kamerayı istasyona odakla
-        this.controls.target.copy(targetSt.pos);
-        this.camera.position.copy(targetSt.pos).add(targetSt.camOffset);
-        this.controls.update();
+        // Yumuşak kamera geçişi başlat
+        this.startCameraTransition(
+            this.camera.position.clone(),
+            targetSt.pos.clone().add(targetSt.camOffset),
+            this.controls.target.clone(),
+            targetSt.pos.clone()
+        );
 
         this.setupStationExperiment(targetSt);
         this.updateInstructionCard(targetSt);
+    }
+
+    // Yumuşak kamera geçişi başlatma
+    startCameraTransition(fromPos, toPos, fromTarget, toTarget) {
+        const ct = this.cameraTransition;
+        ct.startPos.copy(fromPos);
+        ct.targetPos.copy(toPos);
+        ct.startTarget.copy(fromTarget);
+        ct.endTarget.copy(toTarget);
+        ct.progress = 0;
+        ct.active = true;
+    }
+
+    // Kamera geçiş animasyonu güncelleme (animate döngüsünde çağrılır)
+    updateCameraTransition(delta) {
+        const ct = this.cameraTransition;
+        if (!ct.active) return;
+
+        ct.progress += delta / ct.duration;
+        if (ct.progress >= 1.0) {
+            ct.progress = 1.0;
+            ct.active = false;
+        }
+
+        const t = this.easeInOutCubic(ct.progress);
+
+        // Kamera pozisyonu ve hedefini yumuşak geçiş
+        this.camera.position.lerpVectors(ct.startPos, ct.targetPos, t);
+        this.controls.target.lerpVectors(ct.startTarget, ct.endTarget, t);
+        this.controls.update();
     }
 
     goToStation(targetIndex) {
@@ -745,6 +939,9 @@ class SensorLaboratory {
     // ANİMASYON & HAREKET DÖNGÜSÜ
     // ===================================================
     animate(delta) {
+        // Yumuşak kamera geçiş animasyonunu güncelle
+        this.updateCameraTransition(delta);
+
         // İstasyondan istasyona yürüyüş animasyonu
         if (this.isTravelling) {
             this.travelProgress += 0.015;
@@ -756,26 +953,31 @@ class SensorLaboratory {
                 this.builder.robotGroup.position.copy(currentSt.pos);
                 this.builder.robotGroup.rotation.set(0, 0, 0); // Kameraya dönsün
 
-                this.controls.target.copy(currentSt.pos);
-                this.camera.position.copy(currentSt.pos).add(currentSt.camOffset);
-                this.controls.update();
+                // Yumuşak kamera geçişi başlat
+                this.startCameraTransition(
+                    this.camera.position.clone(),
+                    currentSt.pos.clone().add(currentSt.camOffset),
+                    this.controls.target.clone(),
+                    currentSt.pos.clone()
+                );
 
                 this.setupStationExperiment(currentSt);
                 this.updateInstructionCard(currentSt);
 
                 if (window.KidAudio) window.KidAudio.playSnap();
             } else {
-                // Lerp ile robotu ve kamerayı kaydır
-                const t = this.travelProgress;
+                // Easing ile robotu ve kamerayı kaydır
+                const t = this.easeInOutCubic(this.travelProgress);
                 this.builder.robotGroup.position.lerpVectors(this.travelStartPos, this.travelTargetPos, t);
 
-                // Yürüyüş / tekerlek yuvarlanma adımı efekti
-                this.builder.robotGroup.position.y = Math.abs(Math.sin(t * Math.PI * 8)) * 0.15;
+                // Yürüyüş / tekerlek yuvarlanma adımı efekti (hafifletilmiş)
+                this.builder.robotGroup.position.y = Math.abs(Math.sin(t * Math.PI * 8)) * 0.06;
 
-                // Kamera da robotu takip etsin
+                // Kamera da robotu yumuşakça takip etsin
                 const currentSt = this.stations[this.currentStationIndex];
-                this.controls.target.copy(this.builder.robotGroup.position);
-                this.camera.position.copy(this.builder.robotGroup.position).add(currentSt.camOffset);
+                this.controls.target.lerp(this.builder.robotGroup.position, 0.06);
+                const idealCamPos = this.builder.robotGroup.position.clone().add(currentSt.camOffset);
+                this.camera.position.lerp(idealCamPos, 0.04);
             }
         }
 
@@ -784,48 +986,114 @@ class SensorLaboratory {
         // ==========================================
         if (!this.isTravelling && this.builder && this.builder.robotGroup) {
             const robot = this.builder.robotGroup;
-            let isMoving = false;
+            const currentSt = this.stations[this.currentStationIndex];
 
-            // Sağa & Sola Dönüş
+            // İvmelenme sistemi: tuş basılıysa hızlan, bırakılmışsa yavaşla
+            // Dönüş
             if (this.driveState.left) {
-                robot.rotation.y += 0.045;
+                this.velocity.turn += this.TURN_SPEED;
+            } else if (this.driveState.right) {
+                this.velocity.turn -= this.TURN_SPEED;
             }
-            if (this.driveState.right) {
-                robot.rotation.y -= 0.045;
-            }
+            this.velocity.turn *= this.TURN_DECEL;
+            // Çok küçük dönüş değerlerini sıfırla
+            if (Math.abs(this.velocity.turn) < 0.001) this.velocity.turn = 0;
+            robot.rotation.y += this.velocity.turn;
 
-            // İleri & Geri Sürüş
-            const speed = 0.11;
+            // İleri / Geri ivmelenme
             if (this.driveState.up) {
-                robot.position.x += Math.sin(robot.rotation.y) * speed;
-                robot.position.z += Math.cos(robot.rotation.y) * speed;
-                isMoving = true;
-            }
-            if (this.driveState.down) {
-                robot.position.x -= Math.sin(robot.rotation.y) * (speed * 0.6);
-                robot.position.z -= Math.cos(robot.rotation.y) * (speed * 0.6);
-                isMoving = true;
+                this.velocity.forward = Math.min(this.velocity.forward + this.DRIVE_ACCEL, this.MAX_SPEED);
+            } else if (this.driveState.down) {
+                this.velocity.forward = Math.max(this.velocity.forward - this.DRIVE_ACCEL, -this.MAX_REVERSE);
+            } else {
+                this.velocity.forward *= this.DRIVE_DECEL;
+                if (Math.abs(this.velocity.forward) < 0.001) this.velocity.forward = 0;
             }
 
+            const isMoving = Math.abs(this.velocity.forward) > 0.002 || Math.abs(this.velocity.turn) > 0.002;
+
+            // Hareket uygula
+            if (Math.abs(this.velocity.forward) > 0.001) {
+                robot.position.x += Math.sin(robot.rotation.y) * this.velocity.forward;
+                robot.position.z += Math.cos(robot.rotation.y) * this.velocity.forward;
+            }
+
+            // OYUN HİSSİ (GAME FEEL) FİZİKLERİ
             if (isMoving) {
-                // Yürüyüş / sallanma adımı efekti
-                robot.position.y = Math.abs(Math.sin(performance.now() * 0.015)) * 0.12;
-                // Kamera yumuşakça robotu takip etsin
-                this.controls.target.lerp(robot.position, 0.08);
+                // Yürüyüş / sallanma adımı efekti (hafifletilmiş, yormuyor)
+                robot.position.y = Math.abs(Math.sin(performance.now() * 0.012)) * 0.06;
+
+                // 1. İvmelenme ve Fren (Pitch)
+                const targetPitch = this.velocity.forward * 0.5; 
+                robot.rotation.x = THREE.MathUtils.lerp(robot.rotation.x, targetPitch, 0.1);
+
+                // 2. Dönüşlerde Yana Yatma (Banking / Roll)
+                const targetRoll = -this.velocity.turn * 3.5;
+                robot.rotation.z = THREE.MathUtils.lerp(robot.rotation.z, targetRoll, 0.1);
+
+                // 3. Toz Partikülleri (Hızlandıkça daha çok)
+                if (Math.random() < Math.abs(this.velocity.forward) * 3) {
+                    this.spawnDustParticle(robot.position.clone().add(new THREE.Vector3(0, -0.4, 0)));
+                }
 
                 // Tekerlekler veya pervaneler dönsün
                 robot.traverse(child => {
                     if (child.name && child.name.includes('wheel')) {
-                        child.rotation.x += 0.2;
+                        child.rotation.x += this.velocity.forward * 1.5;
                     }
                 });
+            } else {
+                // Durduğunda esnemeleri (pitch/roll) yavaşça sıfırla
+                robot.rotation.x = THREE.MathUtils.lerp(robot.rotation.x, 0, 0.1);
+                robot.rotation.z = THREE.MathUtils.lerp(robot.rotation.z, 0, 0.1);
             }
+
+            // 4. KUSURSUZ 3. ŞAHIS KAMERA TAKİBİ (CHASE CAMERA)
+            // Kullanıcı fareyle manuel etrafa bakmıyorsa (userOrbiting false ise)
+            if (window.app && !window.app.userOrbiting) {
+                const idealOffset = new THREE.Vector3(
+                    -Math.sin(robot.rotation.y) * 4.5,
+                    2.0,
+                    -Math.cos(robot.rotation.y) * 4.5
+                );
+                
+                // Hız algısı (Speed Warping): Hızlandıkça kamerayı hafifçe geriye çek
+                const speedWarp = Math.abs(this.velocity.forward) * 3.0;
+                idealOffset.add(new THREE.Vector3(-Math.sin(robot.rotation.y) * speedWarp, 0, -Math.cos(robot.rotation.y) * speedWarp));
+                
+                const idealCamPos = robot.position.clone().add(idealOffset);
+                this.camera.position.lerp(idealCamPos, 0.05);
+                
+                // Kamera hedefini (lookAt) yumuşakça robotun hafif önüne al
+                const idealTarget = robot.position.clone().add(new THREE.Vector3(
+                    Math.sin(robot.rotation.y) * 2.0,
+                    0.5,
+                    Math.cos(robot.rotation.y) * 2.0
+                ));
+                this.controls.target.lerp(idealTarget, 0.08);
+
+                // Hıza bağlı dinamik FOV değişimi
+                const baseFov = 45;
+                const targetFov = baseFov + (Math.abs(this.velocity.forward) / this.MAX_SPEED) * 5;
+                this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, 0.05);
+                this.camera.updateProjectionMatrix();
+            } else {
+                // Kullanıcı etrafa bakıyorsa sadece FOV'u normale döndür
+                this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 45, 0.05);
+                this.camera.updateProjectionMatrix();
+            }
+
+            // ==========================================
+            // SAHNE SINIR KONTROLÜ (Boundary Clamping)
+            // ==========================================
+            robot.position.x = Math.max(-22, Math.min(22, robot.position.x));
+            robot.position.z = Math.max(-8, Math.min(22, robot.position.z));
 
             // ==========================================
             // CANLI SENSÖR ETKİLEŞİM & YAKINLIK TETİKLERİ
             // ==========================================
 
-            // 1. İstasyon (Mesafe): Robot engele yaklaştıkça ölç
+            // 1. İstasyon (Mesafe): Otomatik Acil Fren
             if (this.currentStationIndex === 0 && this.distanceObstacle) {
                 const dist = robot.position.distanceTo(this.distanceObstacle.position);
                 const cm = Math.max(15, Math.round(dist * 22));
@@ -834,77 +1102,124 @@ class SensorLaboratory {
                 const distSlider = document.getElementById('distanceSlider');
                 if (distSlider) distSlider.value = Math.min(100, Math.max(0, (dist / 3.5) * 100));
 
-                if (dist < 1.15) {
-                    this.updateTelemetry(`🚨 [Mesafe]: ${cm} cm | ENGEL YAKALANDI (ACİL FREN YAPILDI)`);
+                // 20cm kala (yaklaşık 1.5 birim) acil fren
+                if (dist < 1.5 && this.velocity.forward > 0) {
+                    this.velocity.forward = -0.06; // Geri tepme
+                    if (window.KidAudio) window.KidAudio.playError();
+                    this.updateTelemetry(`🚨 [Mesafe]: ${cm} cm | ÇOK YAKIN! Acil Fren Devrede!`);
                     this.markStationDone('distance');
-                    this.driveState.up = false; // Acil fren
-                } else if (isMoving) {
+                    this.driveState.up = false; 
+                } else if (dist < 3.5 && this.velocity.forward > 0) {
+                    // Yaklaştıkça hızlanan uyarı sesi
+                    if (Math.random() < 0.05 && window.KidAudio) window.KidAudio.playClick();
                     this.updateTelemetry(`[Mesafe]: ${cm} cm | Engele yaklaşıyorsun...`);
                 }
             }
 
-            // 2. İstasyon (Işık): Tünelin içine girince
+            // 2. İstasyon (Işık): Karanlık Tünele Girince Farların Yanması
             if (this.currentStationIndex === 1) {
-                if (Math.abs(robot.position.x - 14) < 2.0 && Math.abs(robot.position.z) < 2.5) {
+                const inTunnel = Math.abs(robot.position.x - 14) < 2.0 && Math.abs(robot.position.z) < 2.5;
+                if (inTunnel && !this.isHeadlightsOn) {
+                    this.toggleHeadlights(); // Farları aç
+                    if (window.KidAudio) window.KidAudio.playSnap();
                     this.setLightStationMode('dark');
+                    this.updateTelemetry(`💡 [Işık]: Karanlık Algılandı -> Farlar Otomatik Açıldı`);
+                } else if (!inTunnel && this.isHeadlightsOn && Math.abs(robot.position.x - 14) > 3.0) {
+                    this.toggleHeadlights(); // Farları kapa
+                    this.updateTelemetry(`[Işık]: Aydınlık ortam`);
                 }
             }
 
-            // 3. İstasyon (Isı): Ateş veya buz sütununa yanaşınca
+            // 3. İstasyon (Isı): Motor Dumanı ve Titreme
             if (this.currentStationIndex === 2) {
                 const dHeat = robot.position.distanceTo(new THREE.Vector3(12, 0, 15.8));
                 const dIce = robot.position.distanceTo(new THREE.Vector3(16, 0, 15.8));
-                if (dHeat < 2.2) {
+                
+                if (dHeat < 2.5) {
                     this.setTempStationMode('hot');
-                } else if (dIce < 2.2) {
+                    if (Math.random() < 0.15) this.spawnHeatParticle(robot.position); // Robot sıcaklayıp duman atar
+                    this.isShivering = false;
+                } else if (dIce < 2.5) {
                     this.setTempStationMode('cold');
+                    this.isShivering = true; // Robot soğuktan titrer
+                } else {
+                    this.isShivering = false;
                 }
             }
 
-            // 4. İstasyon (Ses): Sahne merkezine çıkınca
+            // 4. İstasyon (Ses): Sese (Korna) Tepki Verip Zıplama
             if (this.currentStationIndex === 3) {
                 const dStage = robot.position.distanceTo(new THREE.Vector3(0, 0, 14));
-                if (dStage < 2.5 && !this.stations[3].completed) {
-                    this.setSoundStationMode('loud');
+                if (dStage < 3.0) {
+                    if (this.driveState.hornActive && !this.isDancing) {
+                        this.isDancing = true;
+                        this.setSoundStationMode('loud');
+                        this.updateTelemetry(`🎵 [Ses]: Alkış / Ses Duyuldu! Dans Ediliyor!`);
+                        setTimeout(() => { this.isDancing = false; }, 2000); // 2 saniye dans
+                    }
                 }
             }
 
-            // 5. İstasyon (Hareket): Başlangıç kapısına yaklaşınca
+            // 5. İstasyon (Hareket): Kafanın Hareket Edeni Takip Etmesi
             if (this.currentStationIndex === 4) {
                 const dGate = robot.position.distanceTo(new THREE.Vector3(-14, 0, 11.5));
-                if (dGate < 2.8 && !this.movingCharacter && !this.stations[4].completed) {
+                if (dGate < 3.5 && !this.movingCharacter && !this.stations[4].completed) {
                     this.runMotionCharacter();
+                }
+
+                if (this.movingCharacter) {
+                    // Robotun kafası geçen karakteri takip etsin
+                    if (this.builder && this.builder.attachedParts && this.builder.attachedParts.head) {
+                        const head = this.builder.attachedParts.head;
+                        // Kafa global pozisyona (movingCharacter) baksın
+                        head.lookAt(this.movingCharacter.position);
+                        this.updateTelemetry(`👀 [Hareket]: Algılandı! Yön Takip Ediliyor...`);
+                    }
                 }
             }
 
-            // 6. İstasyon (Renk): Mavi küpe dokununca
+            // 6. İstasyon (Renk): Yerdeki Rengi Algılayıp Kendini Boyama
             if (this.currentStationIndex === 5) {
-                const dBlue = robot.position.distanceTo(new THREE.Vector3(-14, 0, 2.5));
-                if (dBlue < 2.0 && !this.stations[5].completed) {
-                    const blueTarget = this.colorTargets.find(t => t.userData && t.userData.targetData && t.userData.targetData.isTarget);
-                    if (blueTarget) this.pickColorTarget(blueTarget);
-                }
+                this.colorTargets.forEach(target => {
+                    if (robot.position.distanceTo(target.position) < 1.5 && target.userData && target.userData.targetData) {
+                        const targetColorHex = target.material.color.getHex();
+                        // Robot yerdeki rengi algıladıysa, rengi kopyalasın
+                        if (this.builder && this.builder.currentBody) {
+                            // Gövdeyi rengine göre boya
+                            this.builder.paintSelected(targetColorHex);
+                            this.updateTelemetry(`🎨 [Renk]: RGB Okundu. Renk Kopyalandı!`);
+                            if (window.KidAudio && Math.random() < 0.05) window.KidAudio.playFanfare();
+                            
+                            if (target.userData.targetData.isTarget && !this.stations[5].completed) {
+                                this.pickColorTarget(target);
+                            }
+                        }
+                    }
+                });
             }
         }
 
-        // Dans animasyonu
+        // Dans animasyonu (istasyon pozisyonuna göre)
         const time = performance.now() * 0.005;
         if (this.isDancing && this.builder && this.builder.robotGroup) {
-            this.builder.robotGroup.position.y = Math.abs(Math.sin(time * 3)) * 0.3;
+            const stPos = this.stations[this.currentStationIndex].pos;
+            this.builder.robotGroup.position.y = stPos.y + Math.abs(Math.sin(time * 3)) * 0.3;
             this.builder.robotGroup.rotation.z = Math.sin(time * 3) * 0.15;
             this.builder.robotGroup.rotation.y = Math.sin(time * 2) * 0.2;
         }
 
-        // Titreme animasyonu
+        // Titreme animasyonu (istasyon pozisyonuna göre offset)
         if (this.isShivering && this.builder && this.builder.robotGroup) {
-            this.builder.robotGroup.position.x = (Math.random() - 0.5) * 0.08;
-            this.builder.robotGroup.position.y = (Math.random() - 0.5) * 0.08;
+            const stPos = this.stations[this.currentStationIndex].pos;
+            this.builder.robotGroup.position.x = stPos.x + (Math.random() - 0.5) * 0.06;
+            this.builder.robotGroup.position.y = stPos.y + (Math.random() - 0.5) * 0.04;
         }
 
-        // Uyku animasyonu
+        // Uyku animasyonu (istasyon pozisyonuna göre)
         if (this.isSleeping && this.builder && this.builder.robotGroup) {
-            this.builder.robotGroup.position.y = -0.2 + Math.sin(time * 0.5) * 0.04;
-            this.builder.robotGroup.rotation.x = 0.2;
+            const stPos = this.stations[this.currentStationIndex].pos;
+            this.builder.robotGroup.position.y = stPos.y - 0.15 + Math.sin(time * 0.5) * 0.04;
+            this.builder.robotGroup.rotation.x = 0.15;
         }
 
         // Buhar parçacıkları
@@ -918,6 +1233,37 @@ class SensorLaboratory {
                 this.heatParticles.splice(i, 1);
             }
         }
+
+        // Toz partikülleri animasyonu
+        for (let i = this.dustParticles.length - 1; i >= 0; i--) {
+            const pt = this.dustParticles[i];
+            pt.mesh.position.add(pt.velocity);
+            pt.life -= 0.04;
+            pt.mesh.scale.setScalar(pt.life);
+            pt.mesh.material.opacity = pt.life * 0.5;
+            if (pt.life <= 0) {
+                this.scene.remove(pt.mesh);
+                this.dustParticles.splice(i, 1);
+            }
+        }
+    }
+
+    spawnDustParticle(pos) {
+        const pGeo = new THREE.SphereGeometry(0.12, 6, 6);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.5 });
+        const p = new THREE.Mesh(pGeo, pMat);
+        
+        // Dağılım ve rastgele hız
+        p.position.set(pos.x + (Math.random()-0.5)*0.4, pos.y, pos.z + (Math.random()-0.5)*0.4);
+        
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.02,
+            Math.random() * 0.03,
+            (Math.random() - 0.5) * 0.02
+        );
+
+        this.scene.add(p);
+        this.dustParticles.push({ mesh: p, velocity: velocity, life: 1.0 });
     }
 }
 

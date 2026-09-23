@@ -13,6 +13,7 @@ class RobotBuilder {
 
         this.robotGroup = new THREE.Group();
         this.robotGroup.name = 'robot_root';
+        this.robotGroup.position.set(0, 0, -30); // Tasarım Garajı konumu
         this.scene.add(this.robotGroup);
 
         this.mode = 'tutorial'; // 'tutorial' | 'custom'
@@ -71,11 +72,42 @@ class RobotBuilder {
                 });
                 const ring = new THREE.Mesh(ringGeo, ringMat);
                 ring.position.copy(pos);
-                ring.userData = { isSocket: true, slot: slot };
+                ring.userData = { isSocket: true, slot: slot, baseScale: 1.0, baseColor: 0xffd34e };
                 this.socketGroup.add(ring);
                 this.socketIndicators.push(ring);
             }
         }
+    }
+
+    highlightSocketForCategory(category) {
+        // 'head', 'arm', 'legs', 'wheel', 'accessory', vs. kategorisine göre ilgili soketi parlat
+        const targetSlots = 
+            category.includes('head') ? ['head'] :
+            category.includes('arm') ? ['armLeft', 'armRight'] :
+            category.includes('legs') || category.includes('wheel') ? ['legs'] :
+            category.includes('acc') ? ['accessory'] : 
+            category.includes('sensor') ? ['chest'] : [];
+
+        this.socketIndicators.forEach(ring => {
+            if (targetSlots.includes(ring.userData.slot)) {
+                // Sürüklenen parçanın takılabileceği soketi büyüt ve parlat (Manyetik çekim hissi)
+                ring.userData.baseScale = 1.6;
+                ring.material.color.setHex(0x3b82f6); // Mavi glow
+                ring.material.opacity = 0.95;
+            } else {
+                // Diğer soketleri soluklaştır
+                ring.userData.baseScale = 0.7;
+                ring.material.opacity = 0.3;
+            }
+        });
+    }
+
+    clearSocketHighlight() {
+        this.socketIndicators.forEach(ring => {
+            ring.userData.baseScale = 1.0;
+            ring.material.color.setHex(ring.userData.baseColor);
+            ring.material.opacity = 0.85;
+        });
     }
 
     animate(delta) {
@@ -83,7 +115,8 @@ class RobotBuilder {
         const time = performance.now() * 0.003;
         this.socketIndicators.forEach(ring => {
             ring.rotation.y = time;
-            ring.scale.setScalar(1 + Math.sin(time * 3) * 0.12);
+            const baseScale = ring.userData.baseScale || 1.0;
+            ring.scale.setScalar(baseScale + Math.sin(time * 3) * (0.12 * baseScale));
         });
 
         // Eğer seçili bir parça varsa hafifçe parlasın
@@ -197,6 +230,12 @@ class RobotBuilder {
 
         if (window.KidAudio) {
             window.KidAudio.playSnap();
+        }
+
+        // Gövde değiştiğinde kameraya hafif bir "bounce" (esneme) efekti ver
+        if (window.app && window.app.camera) {
+            window.app.camera.position.y += 1.2;
+            window.app.camera.position.z += 1.5;
         }
     }
 

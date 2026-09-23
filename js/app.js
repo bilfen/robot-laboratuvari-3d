@@ -8,6 +8,14 @@ class RobotLabApp {
         this.currentStage = 'tutorial'; // 'tutorial' | 'custom_build' | 'sensor_lab'
         this.container = document.getElementById('canvasContainer');
 
+        // Delta-time hesaplaması için son kare zamanı
+        this.lastFrameTime = performance.now();
+
+        // Auto-rotate idle modu (5 saniye etkileşim yoksa)
+        this.lastInteractionTime = performance.now();
+        this.idleRotateActive = false;
+        this.IDLE_TIMEOUT = 5000; // 5 saniye
+
         this.initThree();
         this.initControllers();
         this.bindUIEvents();
@@ -38,14 +46,24 @@ class RobotLabApp {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.container.appendChild(this.renderer.domElement);
 
-        // 4. OrbitControls
+        // 4. OrbitControls — Çocuk dostu UX ayarları
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-        this.controls.maxPolarAngle = Math.PI / 2 + 0.05; // Yerin altına geçmesin
-        this.controls.minDistance = 3.0;
-        this.controls.maxDistance = 10.0;
-        this.controls.target.set(0, 0.2, 0);
+        this.controls.dampingFactor = 0.08;           // Daha doğal sönümleme
+        this.controls.maxPolarAngle = Math.PI * 0.48; // Yerin altına kesinlikle geçemez
+        this.controls.minPolarAngle = Math.PI * 0.1;  // Tam tepeden bakışı sınırla
+        this.controls.minDistance = 2.0;               // Parçaları yakından inceleme
+        this.controls.maxDistance = 16.0;              // Geniş panoramik görünüm
+        this.controls.enablePan = false;               // Çocuklar sahneyi yanlışlıkla kaydırmasın
+        this.controls.target.set(0, 0.2, -30);         // Başlangıçta Tasarım Garajına odaklan
+        this.camera.position.set(0, 2.5, -24);         // Kamera Garajın içinde/önünde başlar
+        this.controls.autoRotate = false;
+        this.controls.autoRotateSpeed = 1.0;           // Idle modda yavaş döndürme hızı
+
+        // Kullanıcı kameraya müdahale ediyor mu? (3. şahıs takibi için)
+        this.userOrbiting = false;
+        this.controls.addEventListener('start', () => { this.userOrbiting = true; });
+        this.controls.addEventListener('end', () => { this.userOrbiting = false; });
 
         // 5. Işıklar
         this.ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
@@ -63,27 +81,57 @@ class RobotLabApp {
         fillLight.position.set(-5, 3, -3);
         this.scene.add(fillLight);
 
-        // 6. Çalışma Masası Kaidesi (Studio Pod)
+        // 6. ÇALIŞMA MASASI VE TASARIM GARAJI (Design Lab)
+        this.garageGroup = new THREE.Group();
+        this.garageGroup.position.set(0, 0, -30); // Parkurdan uzakta, başlangıç garajı
+        this.scene.add(this.garageGroup);
+
+        // Zemin Kaidesi (Studio Pod)
         const podGeo = new THREE.CylinderGeometry(2.4, 2.7, 0.4, 32);
-        const podMat = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            roughness: 0.2,
-            metalness: 0.1
-        });
+        const podMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 });
         this.podMesh = new THREE.Mesh(podGeo, podMat);
         this.podMesh.position.y = -1.4;
         this.podMesh.receiveShadow = true;
-        this.scene.add(this.podMesh);
+        this.garageGroup.add(this.podMesh);
 
         // Kaide neon halkası
         const ringGeo = new THREE.TorusGeometry(2.45, 0.06, 16, 48);
         ringGeo.rotateX(Math.PI / 2);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0x52d4b6 });
-        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        const ringMesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x52d4b6 }));
         ringMesh.position.y = -1.2;
-        this.scene.add(ringMesh);
+        this.garageGroup.add(ringMesh);
+
+        // Garaj Duvarları (Camlı ve Neonlu Teknoloji Odası)
+        const wallGeo = new THREE.BoxGeometry(16, 8, 0.5);
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, transparent: true, opacity: 0.8, metalness: 0.8, roughness: 0.1 });
+        const backWall = new THREE.Mesh(wallGeo, glassMat);
+        backWall.position.set(0, 2.6, -6);
+        this.garageGroup.add(backWall);
+
+        const sideGeo = new THREE.BoxGeometry(0.5, 8, 12);
+        const leftWall = new THREE.Mesh(sideGeo, glassMat);
+        leftWall.position.set(-8, 2.6, 0);
+        this.garageGroup.add(leftWall);
+
+        const rightWall = new THREE.Mesh(sideGeo, glassMat);
+        rightWall.position.set(8, 2.6, 0);
+        this.garageGroup.add(rightWall);
+
+        // Neon Şeritler
+        const neonMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        const neonGeo = new THREE.BoxGeometry(15.8, 0.2, 0.6);
+        const topNeon = new THREE.Mesh(neonGeo, neonMat);
+        topNeon.position.set(0, 6.5, -5.8);
+        this.garageGroup.add(topNeon);
 
         window.addEventListener('resize', () => this.onWindowResize());
+
+        // Etkileşim takibi: herhangi bir tıklama/dokunuş idle zamanlayıcısını sıfırlar
+        const resetIdle = () => this.resetIdleTimer();
+        this.renderer.domElement.addEventListener('pointerdown', resetIdle);
+        this.renderer.domElement.addEventListener('pointermove', resetIdle);
+        this.renderer.domElement.addEventListener('wheel', resetIdle);
+        window.addEventListener('keydown', resetIdle);
     }
 
     onWindowResize() {
@@ -200,8 +248,8 @@ class RobotLabApp {
         // Soket göstergelerini kaldır
         this.builder.updateSocketIndicators();
 
-        // 3D Test Parkurunu Başlat (1. İstasyon: Mesafe)
-        this.sensorLab.startParkTour(0);
+        // 3D Test Parkuruna KOŞARAK GEÇİŞ (Sinematik)
+        this.sensorLab.runToPark();
 
         setTimeout(() => this.onWindowResize(), 120);
 
@@ -308,6 +356,17 @@ class RobotLabApp {
             // Sürükle-Bırak (HTML5 Drag & Drop)
             card.addEventListener('dragstart', e => {
                 e.dataTransfer.setData('text/plain', partKey);
+                // Sürükleme başladığında uygun soketi parlat
+                if (this.builder) {
+                    this.builder.highlightSocketForCategory(card.dataset.category);
+                }
+            });
+
+            card.addEventListener('dragend', e => {
+                // Sürükleme bittiğinde parlamayı kapat
+                if (this.builder) {
+                    this.builder.clearSocketHighlight();
+                }
             });
         });
 
@@ -321,6 +380,9 @@ class RobotLabApp {
             const partKey = e.dataTransfer.getData('text/plain');
             if (partKey) {
                 this.builder.addPartByName(partKey);
+            }
+            if (this.builder) {
+                this.builder.clearSocketHighlight();
             }
         });
 
@@ -539,14 +601,14 @@ class RobotLabApp {
                     handled = true;
                     break;
                 case ' ':
-                    // Boşluk tuşu: Ses istasyonunda dansı, Hareket istasyonunda koşan karakteri, diğerlerinde kornayı çalar
+                    // Boşluk tuşu: Ses istasyonunda dansı, Hareket istasyonunda koşan karakteri, diğerlerinde zıplamayı ve kornayı tetikler
                     if (this.sensorLab.currentStationIndex === 3) {
                         this.sensorLab.setSoundStationMode('loud');
                     } else if (this.sensorLab.currentStationIndex === 4) {
                         this.sensorLab.runMotionCharacter();
-                    } else {
-                        if (window.KidAudio) window.KidAudio.playHonk();
                     }
+                    this.sensorLab.jump();
+                    if (window.KidAudio) window.KidAudio.playHonk();
                     handled = true;
                     break;
             }
@@ -640,19 +702,54 @@ class RobotLabApp {
     }
 
     // ==========================================
+    // IDLE AUTO-ROTATE (Etkileşim yoksa robotu döndür)
+    // ==========================================
+    resetIdleTimer() {
+        this.lastInteractionTime = performance.now();
+        if (this.idleRotateActive) {
+            this.idleRotateActive = false;
+            this.controls.autoRotate = false;
+        }
+    }
+
+    checkIdleRotate(now) {
+        // Sadece montaj modunda (tutorial veya custom_build) auto-rotate uygula
+        if (this.currentStage === 'sensor_lab') {
+            if (this.idleRotateActive) {
+                this.idleRotateActive = false;
+                this.controls.autoRotate = false;
+            }
+            return;
+        }
+
+        if (!this.idleRotateActive && (now - this.lastInteractionTime) > this.IDLE_TIMEOUT) {
+            this.idleRotateActive = true;
+            this.controls.autoRotate = true;
+        }
+    }
+
+    // ==========================================
     // ANİMASYON DÖNGÜSÜ (RENDER LOOP)
     // ==========================================
     animate(time) {
         requestAnimationFrame(this.animate);
 
+        // Gerçek delta-time hesaplaması (saniye cinsinden)
+        const now = performance.now();
+        const deltaTime = Math.min((now - this.lastFrameTime) / 1000, 0.05); // Max 50ms cap
+        this.lastFrameTime = now;
+
+        // Idle auto-rotate kontrolü
+        this.checkIdleRotate(now);
+
         this.controls.update();
 
         if (this.builder) {
-            this.builder.animate(0.016);
+            this.builder.animate(deltaTime);
         }
 
         if (this.currentStage === 'sensor_lab' && this.sensorLab) {
-            this.sensorLab.animate(0.016);
+            this.sensorLab.animate(deltaTime);
         }
 
         this.renderer.render(this.scene, this.camera);
