@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Robot Laboratuvarı - Sürükle Bırak 3D Robot Yapma Oyunu</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- CSS Dosyası -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- 3D Three.js ve OrbitControls (Tamamen Yerel) -->
+    <script src="js/three.min.js"></script>
+    <script src="js/OrbitControls.js"></script>
+</head>
+<body>
+
+    <!-- ==========================================
+         ÜST BİLGİ & NAVİGASYON ÇUBUĞU (TOP BAR)
+         ========================================== -->
+    <header class="top-nav">
+        <div class="brand-area">
+            <div class="logo-badge">🤖</div>
+            <div>
+                <h1 class="brand-title">ROBOT LABORATUVARI</h1>
+                <p class="brand-subtitle">Kendi robotunu 3D tasarla, sensör parkurunda keşfet!</p>
+            </div>
+        </div>
+
+        <!-- 3 Aşamalı Oyun Akışı -->
+        <nav class="nav-stages">
+            <button id="navStage1Btn" class="nav-stage-btn nav-active">
+                <span>⭐ 1. Örnek Şablonla Öğren</span>
+            </button>
+            <button id="navStage2Btn" class="nav-stage-btn">
+                <span>🎨 2. Özgün Robotunu Tasarla</span>
+            </button>
+            <button id="navStage3Btn" class="nav-stage-btn">
+                <span>🏎️ 3. Sensör Test Parkuru</span>
+            </button>
+        </nav>
+
+        <!-- Araçlar: Ses ve Konuşma Kontrolleri -->
+        <div class="nav-tools">
+            <button id="toggleVoiceBtn" class="nav-stage-btn" style="background:#e0f2fe; padding:6px 14px; font-size:13px;" title="Rehber robotun sesli okumasını aç/kapat">
+                🗣️ Sesli Anlatım
+            </button>
+            <button id="toggleMuteBtn" class="tool-icon-btn" title="Ses efektlerini aç/kapat">
+                🔊
+            </button>
+        </div>
+    </header>
+
+    <!-- ==========================================
+         ANA ÇALIŞMA ALANI (3 SÜTUNLU DÜZEN)
+         ========================================== -->
+    <main class="main-workspace">
+
+        <!-- SOL PANEL: PARÇA KUTUSU (PARTS PALETTE) -->
+        <aside id="partsPalettePanel" class="side-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">🧰 Parça Kutusu</h2>
+                <span id="currentModeBadge" class="panel-helper-badge">1. Adım: Şablon</span>
+            </div>
+
+            <!-- Gövde Seçimi (Sadece Özgün Tasarım Modunda) -->
+            <div id="bodySelectorSection" class="palette-section">
+                <h3 class="category-title">Gövde Seçimi</h3>
+                <div class="body-select-grid">
+                    <button class="body-select-btn" data-body="square">
+                        <span class="btn-icon">🟨</span>
+                        <span>Kare Gövde</span>
+                    </button>
+                    <button class="body-select-btn" data-body="round">
+                        <span class="btn-icon">⚪</span>
+                        <span>Yuvarlak</span>
+                    </button>
+                    <button class="body-select-btn" data-body="triangle">
+                        <span class="btn-icon">🔺</span>
+                        <span>Üçgen</span>
+                    </button>
+                    <button class="body-select-btn" data-body="wheel">
+                        <span class="btn-icon">🚜</span>
+                        <span>Tekerlekli</span>
+                    </button>
+                    <button class="body-select-btn" data-body="mecha" style="grid-column: span 2; background:#f0f9ff; border-color:#38bdf8;">
+                        <span class="btn-icon">⚡</span>
+                        <span>Zırhlı Mecha Gövde (Plazma Çekirdekli)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Parça Kategori Filtre Butonları -->
+            <div class="palette-tab-bar">
+                <button class="palette-tab-btn active-palette-tab" data-category="all">🌟 Tümü</button>
+                <button class="palette-tab-btn" data-category="head">👤 Kafa</button>
+                <button class="palette-tab-btn" data-category="arm">💪 Kol</button>
+                <button class="palette-tab-btn" data-category="leg">🦿 Bacak</button>
+                <button class="palette-tab-btn" data-category="acc">🎒 Ekstra</button>
+                <button class="palette-tab-btn" data-category="sensor">🚨 Sensör</button>
+            </div>
+
+            <!-- Parçalar (Kafalar, Kollar, Bacaklar, Sensörler, Aksesuarlar) -->
+            <div class="palette-section">
+                <div class="parts-grid">
+
+                    <!-- ================= KAFALAR ================= -->
+                    <!-- 1. Kafa (Tutorial Parçası) -->
+                    <div class="palette-part-card" draggable="true" data-part="head-round" data-category="head" data-tutorial-required="true">
+                        <span class="part-badge badge-mint">BAŞLANGIÇ</span>
+                        <div class="part-card-icon">👀</div>
+                        <div class="part-card-title">Gözlü Kafa</div>
+                        <div class="part-card-desc">Sevimli dost</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="head-screen" data-category="head">
+                        <span class="part-badge badge-yellow">RETRO</span>
+                        <div class="part-card-icon">📺</div>
+                        <div class="part-card-title">Monitör Kafa</div>
+                        <div class="part-card-desc">Piksel ekranlı</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="head-visor" data-category="head">
+                        <span class="part-badge badge-coral">NEON</span>
+                        <div class="part-card-icon">🥽</div>
+                        <div class="part-card-title">Vizörlü Kafa</div>
+                        <div class="part-card-desc">Neon vizör</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="head-cyber-helmet" data-category="head">
+                        <span class="part-badge badge-blue">SİBER</span>
+                        <div class="part-card-icon">🪖</div>
+                        <div class="part-card-title">Siber Kask</div>
+                        <div class="part-card-desc">Altın V-Anten</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="head-hologram-dome" data-category="head">
+                        <span class="part-badge badge-sky">HOLO</span>
+                        <div class="part-card-icon">🔮</div>
+                        <div class="part-card-title">Holo-Kubbe</div>
+                        <div class="part-card-desc">Cam kubbe & halka</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="head-cat-bot" data-category="head">
+                        <span class="part-badge badge-pink">ANİME</span>
+                        <div class="part-card-icon">🐱</div>
+                        <div class="part-card-title">Kedi Robot</div>
+                        <div class="part-card-desc">Kulaklı & bıyıklı</div>
+                    </div>
+
+                    <!-- ================= KOLLAR ================= -->
+                    <!-- Tutorial Kollar -->
+                    <div class="palette-part-card" draggable="true" data-part="arm-clamp-left" data-category="arm" data-tutorial-required="true">
+                        <span class="part-badge badge-mint">BAŞLANGIÇ</span>
+                        <div class="part-card-icon">🦾</div>
+                        <div class="part-card-title">Sol Kıskaç</div>
+                        <div class="part-card-desc">Mekanik el</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-clamp-right" data-category="arm" data-tutorial-required="true">
+                        <span class="part-badge badge-mint">BAŞLANGIÇ</span>
+                        <div class="part-card-icon">🦿</div>
+                        <div class="part-card-title">Sağ Kıskaç</div>
+                        <div class="part-card-desc">Mekanik el</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-shield-left" data-category="arm">
+                        <span class="part-badge badge-sky">PLAZMA</span>
+                        <div class="part-card-icon">🛡️</div>
+                        <div class="part-card-title">Sol Kalkan</div>
+                        <div class="part-card-desc">Enerji kalkanı</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-shield-right" data-category="arm">
+                        <span class="part-badge badge-sky">PLAZMA</span>
+                        <div class="part-card-icon">🛡️</div>
+                        <div class="part-card-title">Sağ Kalkan</div>
+                        <div class="part-card-desc">Enerji kalkanı</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-drill-left" data-category="arm">
+                        <span class="part-badge badge-yellow">DÖNEN</span>
+                        <div class="part-card-icon">🔩</div>
+                        <div class="part-card-title">Sol Matkap</div>
+                        <div class="part-card-desc">Dönen spiral uç</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-drill-right" data-category="arm">
+                        <span class="part-badge badge-yellow">DÖNEN</span>
+                        <div class="part-card-icon">🔩</div>
+                        <div class="part-card-title">Sağ Matkap</div>
+                        <div class="part-card-desc">Dönen spiral uç</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-hydraulic-left" data-category="arm">
+                        <span class="part-badge badge-coral">AĞIR İŞ</span>
+                        <div class="part-card-icon">🏗️</div>
+                        <div class="part-card-title">Sol Hidrolik</div>
+                        <div class="part-card-desc">3 tırnaklı kıskaç</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-hydraulic-right" data-category="arm">
+                        <span class="part-badge badge-coral">AĞIR İŞ</span>
+                        <div class="part-card-icon">🏗️</div>
+                        <div class="part-card-title">Sağ Hidrolik</div>
+                        <div class="part-card-desc">3 tırnaklı kıskaç</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-blaster-left" data-category="arm">
+                        <span class="part-badge badge-coral">LAZER</span>
+                        <div class="part-card-icon">⚡</div>
+                        <div class="part-card-title">Sol Lazer</div>
+                        <div class="part-card-desc">Işık atar</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-blaster-right" data-category="arm">
+                        <span class="part-badge badge-coral">LAZER</span>
+                        <div class="part-card-icon">⚡</div>
+                        <div class="part-card-title">Sağ Lazer</div>
+                        <div class="part-card-desc">Işık atar</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-round-left" data-category="arm">
+                        <div class="part-card-icon">🧤</div>
+                        <div class="part-card-title">Sol Pofuduk</div>
+                        <div class="part-card-desc">Yumuşak eldiven</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="arm-round-right" data-category="arm">
+                        <div class="part-card-icon">🧤</div>
+                        <div class="part-card-title">Sağ Pofuduk</div>
+                        <div class="part-card-desc">Yumuşak eldiven</div>
+                    </div>
+
+                    <!-- ================= BACAKLAR & SÜRÜŞ ================= -->
+                    <!-- Tutorial Bacak -->
+                    <div class="palette-part-card" draggable="true" data-part="legs-wheel" data-category="leg" data-tutorial-required="true">
+                        <span class="part-badge badge-mint">BAŞLANGIÇ</span>
+                        <div class="part-card-icon">🛞</div>
+                        <div class="part-card-title">Denge Tekerleği</div>
+                        <div class="part-card-desc">Hızlı sürüş</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="legs-hover" data-category="leg">
+                        <span class="part-badge badge-sky">UÇAN</span>
+                        <div class="part-card-icon">🛸</div>
+                        <div class="part-card-title">Hover Yastığı</div>
+                        <div class="part-card-desc">Yerçekimsiz süzülme</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="legs-spider" data-category="leg">
+                        <span class="part-badge badge-blue">YÜRÜYÜCÜ</span>
+                        <div class="part-card-icon">🕷️</div>
+                        <div class="part-card-title">Örümcek Bacak</div>
+                        <div class="part-card-desc">4 eklemli ayak</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="legs-heavy-treads" data-category="leg">
+                        <span class="part-badge badge-yellow">PALET</span>
+                        <div class="part-card-icon">🚜</div>
+                        <div class="part-card-title">Ağır Palet Tank</div>
+                        <div class="part-card-desc">Her arazide gider</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="legs-bipedal" data-category="leg">
+                        <div class="part-card-icon">👢</div>
+                        <div class="part-card-title">Robot Ayaklar</div>
+                        <div class="part-card-desc">Çift bacak botlu</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="legs-rocket" data-category="leg">
+                        <span class="part-badge badge-coral">ROKET</span>
+                        <div class="part-card-icon">🚀</div>
+                        <div class="part-card-title">Jet Roketi</div>
+                        <div class="part-card-desc">Alev püskürtücü</div>
+                    </div>
+
+                    <!-- ================= AKSESUARLAR & KANATLAR ================= -->
+                    <div class="palette-part-card" draggable="true" data-part="acc-cyber-wings" data-category="acc">
+                        <span class="part-badge badge-sky">FOTON</span>
+                        <div class="part-card-icon">🪽</div>
+                        <div class="part-card-title">Mecha Kanat</div>
+                        <div class="part-card-desc">Işıltılı kanatlar</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="acc-satellite" data-category="acc">
+                        <span class="part-badge badge-blue">RADAR</span>
+                        <div class="part-card-icon">📡</div>
+                        <div class="part-card-title">Dönen Radar</div>
+                        <div class="part-card-desc">Uydu çanağı</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="acc-jetpack" data-category="acc">
+                        <span class="part-badge badge-coral">JETPACK</span>
+                        <div class="part-card-icon">🎒</div>
+                        <div class="part-card-title">Çift Türbin</div>
+                        <div class="part-card-desc">Sırt roketi</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="acc-crown" data-category="acc">
+                        <span class="part-badge badge-yellow">KRALİYET</span>
+                        <div class="part-card-icon">👑</div>
+                        <div class="part-card-title">Mucit Tacı</div>
+                        <div class="part-card-desc">Altın & yakutlu</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="acc-propeller" data-category="acc">
+                        <div class="part-card-icon">🚁</div>
+                        <div class="part-card-title">Pervane Şapka</div>
+                        <div class="part-card-desc">Dönen pervane</div>
+                    </div>
+
+                    <!-- ================= SENSÖRLER ================= -->
+                    <div class="palette-part-card" draggable="true" data-part="sensor-distance" data-category="sensor">
+                        <span class="part-badge badge-blue">SENSÖR</span>
+                        <div class="part-card-icon">📏</div>
+                        <div class="part-card-title">Mesafe Gözü</div>
+                        <div class="part-card-desc">Ultrasonik engel</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="sensor-light" data-category="sensor">
+                        <span class="part-badge badge-yellow">SENSÖR</span>
+                        <div class="part-card-icon">🌙</div>
+                        <div class="part-card-title">Işık Gözü</div>
+                        <div class="part-card-desc">LDR fotodirenç</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="sensor-temp" data-category="sensor">
+                        <span class="part-badge badge-coral">SENSÖR</span>
+                        <div class="part-card-icon">🔥</div>
+                        <div class="part-card-title">Isı Çubuğu</div>
+                        <div class="part-card-desc">Termometre</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="sensor-sound" data-category="sensor">
+                        <span class="part-badge badge-pink">SENSÖR</span>
+                        <div class="part-card-icon">📣</div>
+                        <div class="part-card-title">Ses Kulağı</div>
+                        <div class="part-card-desc">Mikrofon</div>
+                    </div>
+
+                    <div class="palette-part-card" draggable="true" data-part="sensor-color" data-category="sensor">
+                        <span class="part-badge badge-sky">SENSÖR</span>
+                        <div class="part-card-icon">🔵</div>
+                        <div class="part-card-title">Renk Gözü</div>
+                        <div class="part-card-desc">RGB tarayıcı</div>
+                    </div>
+
+                </div>
+            </div>
+        </aside>
+
+        <!-- ORTA ALAN: 3D SAHNE & REHBER BOTTI -->
+        <section class="canvas-area">
+            <!-- Yönerge Paneli Gizle/Aç Yüzen Düğmesi (Test Arenasında görünür) -->
+            <button id="btnTogglePanel" class="toggle-panel-float-btn hidden" title="Yönerge Panelini Gizle / Göster">
+                <span>👁️ Yönerge Panelini Gizle</span>
+            </button>
+
+            <!-- Sürüş Kontrol HUD (Yön Tuşları / WASD & Dokunmatik D-Pad) -->
+            <div id="drivingHud" class="driving-hud hidden">
+                <div class="driving-hud-header">
+                    <span>🎮 Sürüş Konsolu</span>
+                    <span class="keyboard-hint-badge">W-A-S-D / Yön Tuşları</span>
+                </div>
+                <div class="dpad-container">
+                    <div class="dpad-grid">
+                        <button id="dpadUp" class="dpad-btn dpad-up" title="İleri Git (W / ↑)">▲</button>
+                        <button id="dpadLeft" class="dpad-btn dpad-left" title="Sola Dön (A / ←)">◀</button>
+                        <div class="dpad-btn dpad-center" title="Robot Konsolu">🏎️</div>
+                        <button id="dpadRight" class="dpad-btn dpad-right" title="Sağa Dön (D / →)">▶</button>
+                        <button id="dpadDown" class="dpad-btn dpad-down" title="Geri Git (S / ↓)">▼</button>
+                    </div>
+                    <div class="driving-action-col">
+                        <button id="btnActionHonk" class="driving-action-btn btn-yellow" title="Korna Çal (H tuşu veya Boşluk)">
+                            <span>📢 Korna (H)</span>
+                        </button>
+                        <button id="btnActionHeadlight" class="driving-action-btn btn-sky" title="Farları Aç/Kapat (L tuşu)">
+                            <span>💡 Far (L)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Üst İpucu Bannerı -->
+            <div id="tutorialGuidanceBanner" class="guidance-banner">
+                <span>💡</span>
+                <span>Bir parça seçip robotuna tak. Tamamlayınca Sensör Test Parkuruna geçeceğiz!</span>
+            </div>
+
+            <!-- 3D Three.js Sahnesi -->
+            <div id="canvasContainer"></div>
+
+            <!-- Kamera & Sürüş İpuçları -->
+            <div class="stage-camera-tips">
+                <span>🖱️ Kamera: Sol Tıkla Çevir</span>
+                <span>🔍 Yakınlaş: Fare Tekerleği</span>
+                <span>🎮 Sürüş: Yön Tuşları / WASD / D-Pad</span>
+            </div>
+
+            <!-- Sevimli Konuşan Maskot Robot "Botti" -->
+            <div class="botti-companion">
+                <div id="bottiSpeechBubble" class="botti-speech-bubble">
+                    <p id="bottiSpeechText">Yükleniyor...</p>
+                </div>
+                <div id="bottiMascot" class="botti-mascot-avatar" title="Botti'ye tıkla, yönergeyi tekrar dinle!">
+                    🤖
+                </div>
+            </div>
+        </section>
+
+        <!-- SAĞ PANEL 1: DÜZENLEME MASASI (MONTAJ MODU) -->
+        <aside id="editControlPanel" class="right-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">🛠️ Düzenleme Masası</h2>
+            </div>
+
+            <!-- Seçili Parça Bilgisi -->
+            <div class="selected-part-box">
+                <div>
+                    <span style="font-size:11px; color:var(--c-text-muted); font-weight:600; display:block;">SEÇİLİ PARÇA</span>
+                    <span id="selectedPartName" class="selected-part-title">Kare Gövde</span>
+                </div>
+                <span style="font-size:20px;">✨</span>
+            </div>
+
+            <!-- Düzenleme Düğmeleri (Canva Butonları) -->
+            <div class="edit-buttons-grid">
+                <button id="btnScaleUp" class="action-btn btn-yellow" title="Parçayı büyüt">
+                    <span>➕ Büyüt</span>
+                </button>
+                <button id="btnScaleDown" class="action-btn" title="Parçayı küçült">
+                    <span>➖ Küçült</span>
+                </button>
+                <button id="btnRotate" class="action-btn btn-yellow" title="Parçayı 45 derece döndür">
+                    <span>🔄 Döndür</span>
+                </button>
+                <button id="btnMirror" class="action-btn btn-yellow" title="Parçayı diğer yana aynala">
+                    <span>↔ Aynala</span>
+                </button>
+                <button id="btnNudgeLeft" class="action-btn" title="Sola kaydır">
+                    <span>← Sol</span>
+                </button>
+                <button id="btnNudgeRight" class="action-btn" title="Sağa kaydır">
+                    <span>Sağ →</span>
+                </button>
+            </div>
+
+            <!-- Renk Paleti -->
+            <div class="color-palette-area">
+                <span class="category-title">Parça Rengini Değiştir</span>
+                <div class="color-swatches">
+                    <button class="color-swatch-btn" style="background:#ffd34e;" data-color="#ffd34e" title="Sarı"></button>
+                    <button class="color-swatch-btn" style="background:#52d4b6;" data-color="#52d4b6" title="Yeşil"></button>
+                    <button class="color-swatch-btn" style="background:#ff735c;" data-color="#ff735c" title="Mercan"></button>
+                    <button class="color-swatch-btn" style="background:#243f78;" data-color="#243f78" title="Mavi"></button>
+                    <button class="color-swatch-btn" style="background:#a4e6ff;" data-color="#a4e6ff" title="Gökyüzü"></button>
+                    <button class="color-swatch-btn" style="background:#ff8bbb;" data-color="#ff8bbb" title="Pembe"></button>
+                    <button class="color-swatch-btn" style="background:#f8fafc;" data-color="#f8fafc" title="Beyaz"></button>
+                    <button class="color-swatch-btn" style="background:#64748b;" data-color="#64748b" title="Metal"></button>
+                </div>
+            </div>
+
+            <!-- Robot Adı -->
+            <div class="robot-name-field">
+                <label for="robotNameInput" class="category-title">Robotunun adı ne olsun?</label>
+                <input type="text" id="robotNameInput" class="robot-name-input" placeholder="Örneğin: Pofuduk Bot" value="DostBot" maxlength="18">
+            </div>
+
+            <!-- Parçayı Sil & Sıfırla -->
+            <div style="display:flex; gap:8px;">
+                <button id="btnDeletePart" class="action-btn btn-danger" style="flex:1;">
+                    <span>🗑️ Parçayı Sil</span>
+                </button>
+                <button id="btnClearRobot" class="action-btn" style="flex:1;">
+                    <span>↺ Sıfırla</span>
+                </button>
+            </div>
+
+            <!-- Tamamla Butonu -->
+            <button id="btnFinishRobot" class="finish-big-btn">
+                <span>🏎️ Robotu Bitirdim ➔ Test Parkuruna Geç!</span>
+            </button>
+        </aside>
+
+        <!-- SAĞ PANEL 2: SENSÖR TEST PARKURU & ÖĞRENCİ YÖNERGE MERKEZİ -->
+        <aside id="sensorLabPanel" class="right-panel hidden">
+            <div class="panel-header">
+                <h2 class="panel-title">🏎️ Sensör Test Parkuru</h2>
+                <span id="totalStarsCount" class="panel-helper-badge" style="background:var(--c-yellow);">0/6 ⭐</span>
+            </div>
+
+            <!-- 6 İstasyonluk Yatay Gezinme Butonları (Breadcrumb) -->
+            <div class="station-steps-bar">
+                <button class="station-step-btn active-station-step" data-index="0" title="1. Mesafe Parkuru">
+                    <span>📏 1</span>
+                    <span id="stationBadge-distance" class="step-badge-star">·</span>
+                </button>
+                <button class="station-step-btn" data-index="1" title="2. Işık Tüneli">
+                    <span>🌙 2</span>
+                    <span id="stationBadge-light" class="step-badge-star">·</span>
+                </button>
+                <button class="station-step-btn" data-index="2" title="3. Isı Odası">
+                    <span>🔥 3</span>
+                    <span id="stationBadge-temp" class="step-badge-star">·</span>
+                </button>
+                <button class="station-step-btn" data-index="3" title="4. Ses Sahnesi">
+                    <span>📣 4</span>
+                    <span id="stationBadge-sound" class="step-badge-star">·</span>
+                </button>
+                <button class="station-step-btn" data-index="4" title="5. Hareket Pisti">
+                    <span>🏃 5</span>
+                    <span id="stationBadge-motion" class="step-badge-star">·</span>
+                </button>
+                <button class="station-step-btn" data-index="5" title="6. Renk Meydanı">
+                    <span>🔵 6</span>
+                    <span id="stationBadge-color" class="step-badge-star">·</span>
+                </button>
+            </div>
+
+            <!-- Öğrenci Yönerge Kartı (Mission Card) -->
+            <div class="student-mission-card">
+                <div class="mission-header">
+                    <span id="stationTitleText" class="mission-title">📏 1. Mesafe & Engel Parkuru</span>
+                </div>
+
+                <!-- 1. Amaç -->
+                <div class="mission-purpose-box">
+                    <span class="box-label">🎯 GÖREVİN AMACI:</span>
+                    <p id="stationPurposeText" class="purpose-text">
+                        Mesafe sensörleri nesneleri algılayarak robotun çarpmasını önler.
+                    </p>
+                </div>
+
+                <!-- 2. Adım Adım Yönergeler -->
+                <div class="mission-steps-box">
+                    <span class="box-label">📋 ADIM ADIM YAPMAN GEREKENLER (YÖNERGE):</span>
+                    <ol id="stationStepsList" class="steps-ordered-list">
+                        <li>Adım 1: Kaydırıcıyı sola çekerek engeli robota doğru kaydır.</li>
+                        <li>Adım 2: Robotun canlı ekranındaki mesafe azalışını takip et.</li>
+                        <li>Adım 3: 20 cm altına inince robotun acil fren yaptığını gör!</li>
+                    </ol>
+                </div>
+
+                <!-- 3. İnteraktif Deney Kontrolleri -->
+                <div class="station-controls-box">
+                    <span class="box-label">🎮 İSTASYON KONTROL PANELİ:</span>
+                    
+                    <!-- Mesafe Kontrolleri -->
+                    <div id="ctrl-distance" class="sensor-control-subpanel">
+                        <input type="range" id="distanceSlider" class="distance-slider" min="0" max="100" value="80">
+                        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-top:4px;">
+                            <span>🚨 Yakın (15cm)</span>
+                            <span id="distanceDisplay" style="color:var(--c-coral);">85 cm</span>
+                            <span>🟢 Uzak (100cm)</span>
+                        </div>
+                    </div>
+
+                    <!-- Işık Kontrolleri -->
+                    <div id="ctrl-light" class="sensor-control-subpanel hidden">
+                        <div style="display:flex; gap:8px;">
+                            <button id="btnLightDark" class="action-btn" style="flex:1; background:#1e293b; color:#fff; border-color:#0f172a;">🌙 Tüneli Karart</button>
+                            <button id="btnLightBright" class="action-btn btn-yellow" style="flex:1;">☀️ Aydınlat</button>
+                        </div>
+                    </div>
+
+                    <!-- Isı Kontrolleri -->
+                    <div id="ctrl-temp" class="sensor-control-subpanel hidden">
+                        <div style="display:flex; gap:6px;">
+                            <button id="btnTempHot" class="action-btn btn-coral" style="flex:1;">🔥 Sıcak</button>
+                            <button id="btnTempCold" class="action-btn btn-sky" style="flex:1;">❄️ Soğuk</button>
+                            <button id="btnTempNormal" class="action-btn" style="flex:1;">🙂 Normal</button>
+                        </div>
+                    </div>
+
+                    <!-- Ses Kontrolleri -->
+                    <div id="ctrl-sound" class="sensor-control-subpanel hidden">
+                        <div style="display:flex; gap:6px;">
+                            <button id="btnSoundLoud" class="action-btn" style="flex:1; background:var(--c-pink);">📣 Yüksek Ses</button>
+                            <button id="btnSoundQuiet" class="action-btn" style="flex:1;">🤫 Sessiz</button>
+                            <button id="btnSoundNormal" class="action-btn btn-sky" style="flex:1;">🗣️ Normal</button>
+                        </div>
+                    </div>
+
+                    <!-- Hareket Kontrolleri -->
+                    <div id="ctrl-motion" class="sensor-control-subpanel hidden">
+                        <button id="btnRunMotionCharacter" class="action-btn btn-mint" style="width:100%;">
+                            🏃 Karakteri Pistte Yürüt
+                        </button>
+                    </div>
+
+                    <!-- Renk Kontrolleri -->
+                    <div id="ctrl-color" class="sensor-control-subpanel hidden">
+                        <p style="font-size:12.5px; color:#1e3a8a; font-weight:600;">
+                            👉 Sahnedeki 3 küpten <b>Ortadaki Mavi Küp</b>'e tıkla!
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 4. Canlı Robot Telemetri Raporu -->
+                <div class="telemetry-box">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                        <span class="telemetry-indicator"></span>
+                        <span style="font-size:11px; font-weight:700; color:#1e293b; letter-spacing:0.5px;">CANLI ROBOT SENSÖR RAPORU</span>
+                    </div>
+                    <div id="stationTelemetryText" class="telemetry-text">
+                        Sistemler hazır. Görev bekleniyor...
+                    </div>
+                </div>
+            </div>
+
+            <!-- İstasyon Gezinme Butonları -->
+            <div class="station-nav-controls">
+                <button id="btnPrevStation" class="action-btn" style="flex:1;" title="Önceki istasyona geri git">
+                    <span>◀ Önceki</span>
+                </button>
+                <button id="btnNextStation" class="action-btn btn-yellow" style="flex:2;" title="Sonraki istasyona yürü">
+                    <span>Sonraki İstasyona Git ➔</span>
+                </button>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- ==========================================
+         MODAL 1: TUTORIAL TAMAMLAMA TEBRİK EKRANI
+         ========================================== -->
+    <div id="tutorialCompleteModal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div style="font-size:54px; margin-bottom:10px;">🎉 🏆 🤖</div>
+            <h2 class="modal-title">Harika İş Çıkardın!</h2>
+            <p class="modal-text">
+                Örnek robot <b>DostBot</b>'u başarıyla tamamladın ve 3D robot birleştirmeyi öğrendin!<br><br>
+                Şimdi hayalindeki özgün robotu baştan sona tasarlamaya hazır mısın?
+            </p>
+            <button id="btnGoCustomFromTutorial" class="finish-big-btn">
+                <span>🎨 Evet! Özgün Robotumu Tasarla</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODAL 2: 6 YILDIZ BAŞARI SERTİFİKASI
+         ========================================== -->
+    <div id="certificateModal" class="modal-backdrop hidden">
+        <div class="modal-card" style="max-width:600px;">
+            <div class="certificate-frame">
+                <div class="cert-badge">🎖️ 🌟 🤖</div>
+                <h2 style="font-family:'Space Mono', monospace; font-size:24px; color:var(--c-navy);">GENÇ ROBOT MÜHENDİSİ DİPLOMASI</h2>
+                <p style="font-size:14px; color:var(--c-text-muted); margin-top:4px;">Sensör Test Parkuru Başarı Belgesi</p>
+                
+                <hr style="border:none; border-top:2px dashed #cbd5e1; margin:16px 0;">
+
+                <p style="font-size:15px; line-height:1.5;">
+                    Tüm parça montajlarını tamamlayıp <b>6 Ayrı Test İstasyonunda</b> sensörlerini başarıyla çalıştıran:
+                </p>
+                
+                <div id="certRobotName" class="cert-robot-name">DostBot 3000</div>
+                
+                <p style="font-size:14px; font-weight:600; color:var(--c-navy);">
+                    "Mesafe, Işık, Sıcaklık, Ses, Hareket ve Renk Sensörleri Uzmanı"
+                </p>
+
+                <div style="display:flex; justify-content:space-around; margin-top:20px; font-size:13px; font-weight:700; color:var(--c-text-muted);">
+                    <div>Tarih: <span>2026</span></div>
+                    <div>Onay: <span>Botti Robotik Akademisi ⭐</span></div>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                <button id="btnDownloadCertificate" class="action-btn btn-yellow" style="flex:1;">
+                    <span>🖨️ Sertifikayı Yazdır / Kaydet</span>
+                </button>
+                <button id="btnCloseCertificate" class="action-btn" style="flex:1;">
+                    <span>Kapat</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Uygulama Katmanları -->
+    <script src="js/audio.js"></script>
+    <script src="js/speech.js"></script>
+    <script src="js/robotParts.js"></script>
+    <script src="js/builder.js"></script>
+    <script src="js/sensors.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
