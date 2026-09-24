@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Robot Laboratuvarı - Sürükle Bırak 3D Robot Yapma Oyunu</title>
+    <title>Robot Laboratuvarı - Interaktif 3D Robotik Eğitim Laboratuvarı</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,20 +27,23 @@
             <div class="logo-badge">🤖</div>
             <div>
                 <h1 class="brand-title">ROBOT LABORATUVARI</h1>
-                <p class="brand-subtitle">Kendi robotunu 3D tasarla, sensör parkurunda keşfet!</p>
+                <p class="brand-subtitle">Tasarla, sensörleri keşfet, algoritma kur, otonom görevi tamamla!</p>
             </div>
         </div>
 
-        <!-- 3 Aşamalı Oyun Akışı -->
+        <!-- Oyun Akışı -->
         <nav class="nav-stages">
             <button id="navStage1Btn" class="nav-stage-btn nav-active">
-                <span>⭐ 1. Örnek Şablonla Öğren</span>
+                <span>⭐ 1. Şablonla Öğren</span>
             </button>
             <button id="navStage2Btn" class="nav-stage-btn">
-                <span>🎨 2. Özgün Robotunu Tasarla</span>
+                <span>🎨 2. Robotunu Tasarla</span>
             </button>
             <button id="navStage3Btn" class="nav-stage-btn">
-                <span>🏎️ 3. Sensör Test Parkuru</span>
+                <span>🏎️ 3. Sensör Parkuru</span>
+            </button>
+            <button id="navMissionCenterBtn" class="nav-stage-btn nav-mission-btn">
+                <span>🎯 4. Görev Merkezi</span>
             </button>
         </nav>
 
@@ -487,7 +490,7 @@
             </button>
         </aside>
 
-        <!-- SAĞ PANEL 2: SENSÖR TEST PARKURU & ÖĞRENCİ YÖNERGE MERKEZİ -->
+        <!-- SAĞ PANEL 2: SENSÖR TEST PARKURU (KLASİK 6 İSTASYON MODU) -->
         <aside id="sensorLabPanel" class="right-panel hidden">
             <div class="panel-header">
                 <h2 class="panel-title">🏎️ Sensör Test Parkuru</h2>
@@ -624,6 +627,315 @@
             </div>
         </aside>
 
+        <!-- ==========================================
+             SAĞ PANEL 3: GÖREV MERKEZİ (Mission Hub)
+             ========================================== -->
+        <aside id="missionsHubPanel" class="right-panel hidden">
+            <div class="panel-header">
+                <h2 class="panel-title">🎯 Görev Merkezi</h2>
+                <span class="panel-helper-badge" style="background:var(--c-mint);">L1 → L5</span>
+            </div>
+
+            <!-- 5.8 Seviye Kartları -->
+            <div id="levelCards" class="level-cards"></div>
+
+            <!-- Hızlı Erişim Araçları -->
+            <div class="quick-tools-box">
+                <span class="box-label">🧪 ÖZEL LABORATUVARLAR:</span>
+                <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+                    <button id="btnCalibration" class="action-btn btn-sky" style="justify-content:flex-start;">
+                        <span>🔬 Sensör Kalibrasyon Odası</span>
+                    </button>
+                    <button id="btnCompareLab" class="action-btn btn-mint" style="justify-content:flex-start;">
+                        <span>🆚 Sensör Karşılaştırma Labı</span>
+                    </button>
+                    <button id="btnFreeExplore" class="action-btn btn-yellow" style="justify-content:flex-start;">
+                        <span>🗺️ Serbest Keşif Modu</span>
+                    </button>
+                    <button id="btnTrackBuilder" class="action-btn" style="justify-content:flex-start;">
+                        <span>🏗️ Kendi Parkurunu Oluştur</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 5.17 Hava Koşulları -->
+            <div class="quick-tools-box">
+                <span class="box-label">🌦️ ÇEVRE KOŞULLARI (sensörleri etkiler):</span>
+                <div class="weather-btn-row">
+                    <button class="weather-btn weather-active" data-weather="normal" title="Normal ortam">☀️ Normal</button>
+                    <button class="weather-btn" data-weather="dark" title="Karanlık ortam">🌙 Karanlık</button>
+                    <button class="weather-btn" data-weather="bright" title="Yoğun ışık">💡 Parlak</button>
+                    <button class="weather-btn" data-weather="fog" title="Sisli ortam">🌫️ Sis</button>
+                    <button class="weather-btn" data-weather="rain" title="Yağmurlu ortam">🌧️ Yağmur</button>
+                    <button class="weather-btn" data-weather="lowvis" title="Düşük görüş">🌁 Düşük Görüş</button>
+                </div>
+                <p style="font-size:11px; color:var(--c-text-muted); margin-top:6px;">
+                    💡 Çevre koşulları sensör verilerini ve robot davranışını etkiler — dene ve gözlemle!
+                </p>
+            </div>
+
+            <!-- 5.9 Rozet Rafı -->
+            <div class="quick-tools-box">
+                <span class="box-label">🏆 ROBOTİK ROZETLERİN:</span>
+                <div id="badgeShelf" class="badge-shelf"></div>
+            </div>
+
+            <!-- Sinematik yeniden oynatma -->
+            <button id="btnReplayCinematic" class="action-btn btn-sky" style="width:100%; margin-top:4px;" title="Son sinematik kamera hareketini tekrar izle">
+                <span>🎥 Son Sinematiği Tekrar İzle</span>
+            </button>
+        </aside>
+
+        <!-- ==========================================
+             SAĞ PANEL 4: KALİBRASYON ODASI KONTROLLERİ
+             ========================================== -->
+        <aside id="calibrationPanel" class="right-panel hidden">
+            <div class="panel-header">
+                <h2 class="panel-title">🔬 Kalibrasyon Odası</h2>
+                <button id="btnCalibBack" class="action-btn" style="padding:4px 10px; font-size:12px;"><span>◀ Merkez</span></button>
+            </div>
+
+            <div class="student-mission-card">
+                <div class="mission-header">
+                    <span class="mission-title">🧪 Sensör Kalibrasyon Laboratuvarı</span>
+                </div>
+
+                <div class="cal-tab-bar">
+                    <button class="cal-tab-btn cal-tab-active" data-sub="mesafe">📏 Mesafe</button>
+                    <button class="cal-tab-btn" data-sub="rgb">🔵 RGB</button>
+                    <button class="cal-tab-btn" data-sub="env">🌡️ Işık/Isı/Ses</button>
+                </div>
+
+                <!-- Mesafe alt paneli -->
+                <div id="calSub-mesafe" class="cal-subpanel">
+                    <span class="box-label">📐 Hedef Mesafe Seç (robotu çizgiye sür):</span>
+                    <div class="cal-dist-grid">
+                        <button class="cal-dist-btn" data-cm="100">100 cm</button>
+                        <button class="cal-dist-btn" data-cm="75">75 cm</button>
+                        <button class="cal-dist-btn" data-cm="50">50 cm</button>
+                        <button class="cal-dist-btn" data-cm="25">25 cm</button>
+                        <button class="cal-dist-btn" data-cm="10">10 cm</button>
+                    </div>
+                    <div class="cal-question-box">
+                        <span class="box-label">🤔 SORU:</span>
+                        <p style="font-size:12.5px; margin:4px 0;">"Gerçek mesafe ile sensörün ölçtüğü değer aynı mı?"</p>
+                    </div>
+                </div>
+
+                <!-- RGB alt paneli -->
+                <div id="calSub-rgb" class="cal-subpanel hidden">
+                    <span class="box-label">🔵 Renk Karolarına yaklaş (Kırmızı/Yeşil/Mavi/Sarı/Beyaz):</span>
+                    <p style="font-size:12.5px; margin-top:6px;">
+                        Robot karoya yaklaştığında sensör gerçek RGB değerini gösterir:<br>
+                        <span style="font-family:'Space Mono',monospace; background:#eef2ff; padding:2px 6px; border-radius:6px;">RGB: 255 / 0 / 0</span>
+                    </p>
+                </div>
+
+                <!-- Işık/Isı/Ses alt paneli -->
+                <div id="calSub-env" class="cal-subpanel hidden">
+                    <span class="box-label">🌡️ Çevre Kaynakları:</span>
+                    <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+                        <div style="display:flex; gap:6px;">
+                            <button id="calLampOn" class="action-btn btn-yellow" style="flex:1;"><span>💡 Lamba Aç</span></button>
+                            <button id="calLampOff" class="action-btn" style="flex:1;"><span>🌙 Kapat</span></button>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button id="calSpeakerOn" class="action-btn btn-pink" style="flex:1;"><span>📣 Ses Aç</span></button>
+                            <button id="calSpeakerOff" class="action-btn" style="flex:1;"><span>🤫 Kapat</span></button>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button id="calHeaterOn" class="action-btn btn-coral" style="flex:1;"><span>🔥 Isıtıcı Aç</span></button>
+                            <button id="calHeaterOff" class="action-btn btn-sky" style="flex:1;"><span>❄️ Kapat</span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ölçüm grafiği -->
+                <div class="cal-graph-box">
+                    <span class="box-label">📊 CANLI ÖLÇÜM GRAFİĞİ:</span>
+                    <div id="calGraphReading" class="cal-graph-bar-track"><span class="graph-label">Ölçüm bekleniyor...</span></div>
+                    <div id="calRealDistance" class="cal-real-text">Robotu ölçüm şeridine sür.</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ==========================================
+             SAĞ PANEL 5: KARŞILAŞTIRMA LABI
+             ========================================== -->
+        <aside id="comparePanel" class="right-panel hidden">
+            <div class="panel-header">
+                <h2 class="panel-title">🆚 Karşılaştırma Labı</h2>
+                <button id="btnCompareBack" class="action-btn" style="padding:4px 10px; font-size:12px;"><span>◀ Merkez</span></button>
+            </div>
+
+            <div class="student-mission-card">
+                <div class="mission-header">
+                    <span class="mission-title">🔍 Sensör Karşılaştırma Deneyi</span>
+                </div>
+                <p style="font-size:13px; line-height:1.5; color:var(--c-text);">
+                    Aynı engel, farklı sensörler! Robotu turuncu küpe doğru sür ve iki sensörün raporunu yan yana izle:
+                </p>
+                <div id="compareReadout" class="compare-readout">
+                    <div class="compare-row"><span class="compare-badge ultrasonic">ULTRASONİK</span><span>Mesafe: <b>— cm</b></span></div>
+                    <div class="compare-row"><span class="compare-badge ir">IR SENSÖR</span><span>Algılama: <b>—</b></span></div>
+                </div>
+                <div class="cal-question-box" style="margin-top:10px;">
+                    <span class="box-label">🎯 AMAÇ:</span>
+                    <p style="font-size:12.5px; margin:4px 0;">"Her sensör aynı problemi aynı şekilde çözmez!"</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ==========================================
+             SAĞ PANEL 6: SERBEST KEŞİF MODU
+             ========================================== -->
+        <aside id="freeExplorePanel" class="right-panel hidden">
+            <div class="panel-header">
+                <h2 class="panel-title">🗺️ Serbest Keşif</h2>
+                <button id="btnFreeBack" class="action-btn" style="padding:4px 10px; font-size:12px;"><span>◀ Merkez</span></button>
+            </div>
+
+            <div class="quick-tools-box">
+                <span class="box-label">🧰 DENEY ARAÇLARI (tıkla → robotun önüne yerleşir):</span>
+                <div class="free-tools-grid">
+                    <button class="free-tool-btn" data-tool="obstacle">🧱 Engel</button>
+                    <button class="free-tool-btn" data-tool="wall">🧊 Duvar</button>
+                    <button class="free-tool-btn" data-tool="colortile">🎨 Renkli Zemin</button>
+                    <button class="free-tool-btn" data-tool="light">💡 Işık Kaynağı</button>
+                    <button class="free-tool-btn" data-tool="sound">🔊 Ses Kaynağı</button>
+                    <button class="free-tool-btn" data-tool="movingtarget">🏃 Hareketli Hedef</button>
+                    <button class="free-tool-btn" data-tool="ramp">🛝 Rampa</button>
+                    <button class="free-tool-btn" data-tool="tunnel">🕳️ Tünel</button>
+                    <button class="free-tool-btn" data-tool="sensorstation">📡 Sensör İstasyonu</button>
+                </div>
+                <button id="freeClearProps" class="action-btn btn-danger" style="width:100%; margin-top:8px;">
+                    <span>🧹 Tüm Nesneleri Temizle</span>
+                </button>
+            </div>
+
+            <div class="quick-tools-box">
+                <span class="box-label">💡 İDEALAR:</span>
+                <ul class="steps-ordered-list" style="font-size:12px;">
+                    <li>Hareketli hedef koy → PIR konisini izle!</li>
+                    <li>Karanlık ortam + tünel → farlar otomatik yanar mı?</li>
+                    <li>Sis + engel → mesafe sensörü ne kadar doğru?</li>
+                    <li>Renkli zemine sür → RGB değeri ve ışık huzmesi!</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- ==========================================
+             SAĞ PANEL 7: AKTİF GÖREV PANELİ
+             ========================================== -->
+        <aside id="missionPanel" class="right-panel hidden">
+            <div class="panel-header">
+                <h2 class="panel-title">🚀 Aktif Görev</h2>
+                <button id="btnMissionBack" class="action-btn" style="padding:4px 10px; font-size:12px;"><span>◀ Merkez</span></button>
+            </div>
+
+            <div class="student-mission-card">
+                <div class="mission-header">
+                    <span id="missionTitle" class="mission-title">Görev</span>
+                </div>
+
+                <!-- 5.3 Algoritma kutusu -->
+                <div id="missionCodeBox" class="mission-code-box"></div>
+
+                <!-- Görev durum -->
+                <div id="missionStatusText" class="mission-status-text">
+                    Görev bekleniyor...
+                </div>
+
+                <!-- İlerleme -->
+                <div class="mission-progress-track"><div id="missionProgress" class="mission-progress-fill" style="width:0%"></div></div>
+
+                <!-- Görev eylem butonları -->
+                <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+                    <button id="btnRunAlgorithm" class="action-btn btn-yellow hidden"><span>▶️ Algoritmayı Yükle</span></button>
+                    <button id="btnAlgorithmReset" class="action-btn hidden"><span>↺ Algoritmayı Sıfırla</span></button>
+                    <button id="btnResetMalfunction" class="action-btn btn-mint hidden"><span>🔧 Arızayı Onarla</span></button>
+                    <button id="btnMissionAbort" class="action-btn btn-danger"><span>✖ Görevi İptal Et</span></button>
+                </div>
+
+                <!-- Görev adımları -->
+                <div class="mission-steps-box" style="margin-top:10px;">
+                    <span class="box-label">📋 GÖREV ADIMLARI:</span>
+                    <ol id="missionStepsList" class="steps-ordered-list"></ol>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ==========================================
+             SAĞ PANEL 8: PARKUR YAPICI
+             ========================================== -->
+        <aside id="trackBuilderPanel" class="right-panel hidden">
+            <div class="panel-header">
+                <h2 class="panel-title">🏗️ Parkur Yapıcı</h2>
+                <span id="btnBuilderCount" class="panel-helper-badge">0 parça</span>
+            </div>
+
+            <div class="quick-tools-box">
+                <span class="box-label">🧱 YERLEŞTİRME ARAÇLARI (zeminde sol tık: ekle, sağ tık: kaldır):</span>
+                <div class="tb-tools-grid">
+                    <button class="tb-tool-btn tb-tool-active" data-tool="obstacle">🧱 Engel</button>
+                    <button class="tb-tool-btn" data-tool="wall">🧊 Duvar</button>
+                    <button class="tb-tool-btn" data-tool="colortile">🎨 Renkli Zemin</button>
+                    <button class="tb-tool-btn" data-tool="light">💡 Işık Kaynağı</button>
+                    <button class="tb-tool-btn" data-tool="sound">🔊 Ses Kaynağı</button>
+                    <button class="tb-tool-btn" data-tool="movingtarget">🏃 Hareketli Hedef</button>
+                    <button class="tb-tool-btn" data-tool="ramp">🛝 Rampa</button>
+                    <button class="tb-tool-btn" data-tool="tunnel">🕳️ Tünel</button>
+                    <button class="tb-tool-btn" data-tool="sensorstation">📡 Sensör İstasyonu</button>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <button id="btnBuilderTest" class="finish-big-btn"><span>🧪 TEST PARKURU ▶</span></button>
+                <button id="btnBuilderTestStop" class="action-btn btn-danger hidden"><span>⏹ Testi Bitir & Rapor Al</span></button>
+                <button id="btnBuilderClear" class="action-btn"><span>🧹 Parkuru Temizle</span></button>
+            </div>
+
+            <div class="quick-tools-box" style="margin-top:8px;">
+                <span class="box-label">💡 NASIL OYNANIR:</span>
+                <ul class="steps-ordered-list" style="font-size:12px;">
+                    <li>Araç seç → zemindeki hayalet önizleme takip etsin.</li>
+                    <li>Zemine tıkla → parça ızgaraya yerleşsin.</li>
+                    <li>Yanlış yerleştirdiysen sağ tıkla → silinir.</li>
+                    <li>TEST PARKURU ile robotunla dene!</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- ==========================================
+             TELEMETRİ PANELİ (5.1) — yüzen hologram HUD
+             ========================================== -->
+        <div id="telemetryPanel" class="telemetry-panel hidden">
+            <div class="tele-header">
+                <span class="telemetry-indicator"></span>
+                <span class="tele-title">ROBOT TELEMETRİSİ</span>
+                <span id="tMode" class="tele-val idle">BEKLEMEDE</span>
+            </div>
+            <div class="tele-grid">
+                <div class="tele-item"><span class="tele-icon">📏</span><span class="tele-label">Mesafe</span><span id="tDist" class="tele-val">100 cm</span></div>
+                <div class="tele-item"><span class="tele-icon">💡</span><span class="tele-label">Işık</span><span id="tLight" class="tele-val">95 %</span></div>
+                <div class="tele-item"><span class="tele-icon">🌡️</span><span class="tele-label">Sıcaklık</span><span id="tTemp" class="tele-val">24 °C</span></div>
+                <div class="tele-item"><span class="tele-icon">🔊</span><span class="tele-label">Ses</span><span id="tSound" class="tele-val">35 dB</span></div>
+                <div class="tele-item"><span class="tele-icon">👀</span><span class="tele-label">Hareket</span><span id="tMotion" class="tele-val ok">BEKLEMEDE</span></div>
+                <div class="tele-item"><span class="tele-icon">🎨</span><span class="tele-label">RGB</span><span class="tele-val-inline"><span id="tRgbDot" class="rgb-dot"></span><span id="tRgb" class="tele-val">R:128 G:128 B:128</span></span></div>
+                <div class="tele-item"><span class="tele-icon">⚙️</span><span class="tele-label">Motor</span><span id="tMotor" class="tele-val">0 %</span></div>
+                <div class="tele-item tele-item-wide">
+                    <div class="motor-bar-track"><div id="tMotorBar" class="motor-bar-fill"></div></div>
+                    <span id="tMotorsLR" class="tele-motors-lr">L: 0 | R: 0</span>
+                </div>
+                <div class="tele-item tele-item-wide">
+                    <span class="tele-label">🔋 Batarya</span>
+                    <div class="battery-track"><div id="tBatteryFill" class="battery-fill batt-ok" style="width:100%"></div></div>
+                    <span id="tBatteryText" class="tele-val">%100</span>
+                </div>
+                <div class="tele-item tele-item-wide"><span class="tele-icon">📡</span><span class="tele-label">Aktif Sensör</span><span id="tActiveSensor" class="tele-val active">—</span></div>
+            </div>
+        </div>
+
     </main>
 
     <!-- ==========================================
@@ -682,12 +994,73 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         MODAL 3: GÖREV SONU RAPORU (5.10)
+         ========================================== -->
+    <div id="missionReportModal" class="modal-backdrop hidden">
+        <div class="modal-card" style="max-width:520px;">
+            <div class="report-frame">
+                <h2 id="reportTitle" class="report-title">📊 MISSION REPORT</h2>
+                <div class="report-grid">
+                    <div class="report-section">
+                        <span class="box-label">⏱️ SÜRE:</span>
+                        <span id="reportTime" class="report-big">00:00</span>
+                    </div>
+                    <div class="report-section">
+                        <span class="box-label">⚡ KULLANILAN ENERJİ:</span>
+                        <span id="reportEnergy" class="report-big">%0</span>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <span class="box-label">📡 SENSÖR KULLANIMI:</span>
+                    <div id="reportSensors" class="report-sensor-list"></div>
+                </div>
+
+                <div class="report-grid">
+                    <div class="report-section">
+                        <span class="box-label">🏎️ MAKSİMUM HIZ:</span>
+                        <span id="reportMaxSpeed" class="report-big">%0</span>
+                    </div>
+                    <div class="report-section">
+                        <span class="box-label">📏 MİNİMUM MESAFE:</span>
+                        <span id="reportMinDist" class="report-big">— cm</span>
+                    </div>
+                </div>
+
+                <div class="report-grid">
+                    <div class="report-section">
+                        <span class="box-label">💥 ÇARPMA:</span>
+                        <span id="reportCollisions" class="report-big">0</span>
+                    </div>
+                    <div class="report-section">
+                        <span class="box-label">✅ BAŞARILI TEPKİ:</span>
+                        <span id="reportReaction" class="report-big">—</span>
+                    </div>
+                </div>
+
+                <div class="report-energy-summary">
+                    <div>🔋 TOPLAM ENERJİ: <b>%100</b></div>
+                    <div>⚡ KULLANILAN: <b id="reportEnergy2">%0</b></div>
+                    <div>✨ KALAN: <b id="reportEnergy3">%100</b></div>
+                </div>
+            </div>
+            <button id="btnReportClose" class="finish-big-btn" style="margin-top:14px;">
+                <span>📈 Harika! Görev Merkezine Dön</span>
+            </button>
+        </div>
+    </div>
+
     <!-- JavaScript Uygulama Katmanları -->
     <script src="js/audio.js"></script>
     <script src="js/speech.js"></script>
     <script src="js/robotParts.js"></script>
     <script src="js/builder.js"></script>
     <script src="js/sensors.js"></script>
+    <script src="js/telemetry.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/missions.js"></script>
+    <script src="js/trackBuilder.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

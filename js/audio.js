@@ -233,6 +233,45 @@ class KidAudioController {
         });
     }
 
+    // Hata / Arıza uyarısı (düşük çift ton)
+    playError() {
+        if (this.isMuted) return;
+        this.ensureContext();
+        if (!this.ctx) return;
+        [0, 0.13].forEach((offset, idx) => {
+            const now = this.ctx.currentTime + offset;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(idx === 0 ? 220 : 160, now);
+            gain.gain.setValueAtTime(0.14, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.13);
+        });
+    }
+
+    // Enerji istasyonunda şarj sesi (yükselen ton)
+    playCharge() {
+        if (this.isMuted) return;
+        this.ensureContext();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.linearRampToValueAtTime(900, now + 0.4);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+    }
+
     // Eğlenceli Robot Kornası (Beep Beep!)
     playHonk() {
         if (this.isMuted) return;

@@ -1,11 +1,12 @@
 /**
  * Robot Laboratuvarı - Ana Uygulama Yöneticisi (App Controller)
  * Three.js sahnesi, kamera, ışıklar, aşamalar arası geçiş ve UI bağlamaları.
+ * Yeni: Görev Merkezi, Telemetri, Canlı Dünya, Sinematik kamera entegrasyonu.
  */
 
 class RobotLabApp {
     constructor() {
-        this.currentStage = 'tutorial'; // 'tutorial' | 'custom_build' | 'sensor_lab'
+        this.currentStage = 'tutorial'; // 'tutorial' | 'custom_build' | 'sensor_lab' | 'missions'
         this.container = document.getElementById('canvasContainer');
 
         // Delta-time hesaplaması için son kare zamanı
@@ -35,7 +36,7 @@ class RobotLabApp {
         this.scene.background = new THREE.Color(0xf0f9ff);
 
         // 2. Kamera
-        this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+        this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 200);
         this.camera.position.set(0, 1.2, 5.8);
 
         // 3. Renderer
@@ -44,6 +45,14 @@ class RobotLabApp {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        // Pixar-style cinematic rendering
+        if (THREE.ACESFilmicToneMapping !== undefined) {
+            this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            this.renderer.toneMappingExposure = 1.15;
+        }
+        if (this.renderer.physicallyCorrectLights !== undefined) {
+            this.renderer.physicallyCorrectLights = true;
+        }
         this.container.appendChild(this.renderer.domElement);
 
         // 4. OrbitControls — Çocuk dostu UX ayarları
@@ -53,7 +62,7 @@ class RobotLabApp {
         this.controls.maxPolarAngle = Math.PI * 0.48; // Yerin altına kesinlikle geçemez
         this.controls.minPolarAngle = Math.PI * 0.1;  // Tam tepeden bakışı sınırla
         this.controls.minDistance = 2.0;               // Parçaları yakından inceleme
-        this.controls.maxDistance = 16.0;              // Geniş panoramik görünüm
+        this.controls.maxDistance = 40.0;              // Geniş panoramik görünüm (kalibrasyon odası için)
         this.controls.enablePan = false;               // Çocuklar sahneyi yanlışlıkla kaydırmasın
         this.controls.target.set(0, 0.2, -30);         // Başlangıçta Tasarım Garajına odaklan
         this.camera.position.set(0, 2.5, -24);         // Kamera Garajın içinde/önünde başlar
@@ -65,21 +74,47 @@ class RobotLabApp {
         this.controls.addEventListener('start', () => { this.userOrbiting = true; });
         this.controls.addEventListener('end', () => { this.userOrbiting = false; });
 
-        // 5. Işıklar
-        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+        // 5. Işıklar — Pixar Sinematik Işıklandırma
+        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
         this.scene.add(this.ambientLight);
 
-        this.dirLight = new THREE.DirectionalLight(0xfffbeb, 1.1);
+        // Ana güneş ışığı (yüksek çözünürlüklü gölge)
+        this.dirLight = new THREE.DirectionalLight(0xfffbeb, 1.4);
         this.dirLight.position.set(4, 8, 5);
         this.dirLight.castShadow = true;
-        this.dirLight.shadow.mapSize.width = 1024;
-        this.dirLight.shadow.mapSize.height = 1024;
+        this.dirLight.shadow.mapSize.width = 2048;
+        this.dirLight.shadow.mapSize.height = 2048;
         this.dirLight.shadow.bias = -0.001;
+        this.dirLight.shadow.camera.near = 0.5;
+        this.dirLight.shadow.camera.far = 90;
+        this.dirLight.shadow.camera.left = -30;
+        this.dirLight.shadow.camera.right = 30;
+        this.dirLight.shadow.camera.top = 30;
+        this.dirLight.shadow.camera.bottom = -30;
         this.scene.add(this.dirLight);
 
-        const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.5);
+        // Dolgu ışığı (mavi tonu — Pixar soğuk-sıcak kontrast)
+        const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.7);
         fillLight.position.set(-5, 3, -3);
         this.scene.add(fillLight);
+
+        // Yarım küre ışık — gökyüzü/zemin renk dolgusu (Pixar karakteristik)
+        this.hemiLight = new THREE.HemisphereLight(0x87ceeb, 0xd4b896, 0.5);
+        this.scene.add(this.hemiLight);
+
+        // Rim ışığı (robotun arkasını aydınlatır, Pixar kenar parlaması)
+        this.rimLight = new THREE.SpotLight(0x38bdf8, 3.0, 25, Math.PI / 7, 0.5);
+        this.rimLight.position.set(-4, 7, -4);
+        this.rimLight.castShadow = false;
+        this.scene.add(this.rimLight);
+        this.rimLightTarget = new THREE.Object3D();
+        this.scene.add(this.rimLightTarget);
+        this.rimLight.target = this.rimLightTarget;
+
+        // Garaj plazma çekirdek parlaması
+        this.garageGlow = new THREE.PointLight(0x38bdf8, 2.0, 10);
+        this.garageGlow.position.set(0, 0.5, -30);
+        this.scene.add(this.garageGlow);
 
         // 6. ÇALIŞMA MASASI VE TASARIM GARAJI (Design Lab)
         this.garageGroup = new THREE.Group();
@@ -117,12 +152,54 @@ class RobotLabApp {
         rightWall.position.set(8, 2.6, 0);
         this.garageGroup.add(rightWall);
 
-        // Neon Şeritler
+        // Neon Şeritler (Tavan)
         const neonMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
         const neonGeo = new THREE.BoxGeometry(15.8, 0.2, 0.6);
         const topNeon = new THREE.Mesh(neonGeo, neonMat);
         topNeon.position.set(0, 6.5, -5.8);
         this.garageGroup.add(topNeon);
+
+        // Neon zemin ızgara çizgileri (hız hissi verir)
+        const gridLineMat = new THREE.MeshBasicMaterial({ color: 0x0ea5e9, transparent: true, opacity: 0.3 });
+        for (let i = -6; i <= 6; i += 2) {
+            const hLine = new THREE.Mesh(new THREE.PlaneGeometry(16, 0.06), gridLineMat);
+            hLine.rotation.x = -Math.PI / 2;
+            hLine.position.set(0, -1.18, i);
+            this.garageGroup.add(hLine);
+            const vLine = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 12), gridLineMat);
+            vLine.rotation.x = -Math.PI / 2;
+            vLine.position.set(i, -1.18, 0);
+            this.garageGroup.add(vLine);
+        }
+
+        // Yan duvar neon aksanlar + point ışıklar
+        [-7.6, 7.6].forEach((x, side) => {
+            // Dikey neon şerit
+            const stripMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(0.12, 5.5, 0.12),
+                new THREE.MeshBasicMaterial({ color: side === 0 ? 0x52d4b6 : 0xff735c })
+            );
+            stripMesh.position.set(x, 1.5, 0);
+            this.garageGroup.add(stripMesh);
+
+            // Şeritten yayılan point ışık (garajı renklendirir)
+            const pl = new THREE.PointLight(side === 0 ? 0x52d4b6 : 0xff735c, 1.2, 12);
+            pl.position.set(x * 0.9, 2, -30);
+            this.scene.add(pl);
+        });
+
+        // Tavan sarkık panel ışıkları (3 adet, eşit aralıklı)
+        [-4, 0, 4].forEach(x => {
+            const panelGeo = new THREE.BoxGeometry(2.5, 0.12, 0.8);
+            const panelMat = new THREE.MeshBasicMaterial({ color: 0xfff8e7 });
+            const panel = new THREE.Mesh(panelGeo, panelMat);
+            panel.position.set(x, 5.8, -2);
+            this.garageGroup.add(panel);
+
+            const pl = new THREE.PointLight(0xfff8e7, 0.8, 8);
+            pl.position.set(x, 5.5, -32);
+            this.scene.add(pl);
+        });
 
         window.addEventListener('resize', () => this.onWindowResize());
 
@@ -146,9 +223,26 @@ class RobotLabApp {
         // Builder Motoru
         this.builder = new RobotBuilder(this.scene, this.camera, this.renderer, this.controls);
 
-        // Sensör Laboratuvarı Motoru
+        // Sensör Laboratuvarı Motoru (klasik 6 istasyon modu)
         this.sensorLab = new SensorLaboratory(this.scene, this.camera, this.renderer, this.builder, this.controls);
         this.sensorLab.setLights(this.ambientLight, this.dirLight);
+
+        // Telemetri Sistemi (5.1)
+        this.telemetry = new TelemetrySystem();
+        this.telemetry.bindPanel();
+
+        // Canlı Dünya Sistemi (5.12, 5.16, 5.17, 5.11, 7.5, 5.13)
+        this.world = new WorldSystem(this.scene, this.camera, this.controls);
+        this.world.buildDynamicWorld();
+        this.world.buildGarageProps(this.garageGroup);
+        this.world.buildCalibrationRoom();
+        this.world.buildCompanion();
+
+        // Görev Merkezi (5.8 vb.)
+        this.missions = new MissionController(this.scene, this.camera, this.controls, this.builder, this.world, this.telemetry);
+
+        // Parkur Yapıcı (5.15)
+        this.trackBuilder = new TrackBuilderController(this.scene, this.camera, this.controls, this.builder);
 
         // Botti Maskot Bağlantısı
         if (window.Botti) {
@@ -160,30 +254,81 @@ class RobotLabApp {
     }
 
     // ==========================================
+    // YENİ: Görev Merkezi geçişi (aşama 4)
+    // ==========================================
+    startMissionCenter() {
+        this.currentStage = 'missions';
+
+        document.getElementById('navStage1Btn').classList.remove('nav-active');
+        document.getElementById('navStage2Btn').classList.remove('nav-active');
+        document.getElementById('navStage3Btn').classList.remove('nav-active');
+        document.getElementById('navMissionCenterBtn').classList.add('nav-active');
+
+        this.showSensorsStageChrome(true);
+        this.missions.enterMissions();
+
+        // Drone görünür olsun (5.13)
+        this.world.showCompanion(true);
+
+        setTimeout(() => this.onWindowResize(), 120);
+    }
+
+    // ==========================================
+    // SENSÖR AŞAMASI UI KROMU (HUD + panel görünürlüğü)
+    // show: true → sürüş HUD + sağ panel alanı missions panellerine açılır
+    // ==========================================
+    showSensorsStageChrome(show) {
+        const workspace = document.querySelector('.main-workspace');
+        if (workspace) {
+            if (show) workspace.classList.add('sensor-mode');
+            else workspace.classList.remove('sensor-mode');
+            workspace.classList.remove('full-canvas-mode');
+        }
+
+        const drivingHud = document.getElementById('drivingHud');
+        if (drivingHud) drivingHud.classList.toggle('hidden', !show);
+
+        const btnTogglePanel = document.getElementById('btnTogglePanel');
+        if (btnTogglePanel) {
+            btnTogglePanel.classList.toggle('hidden', !show);
+            btnTogglePanel.innerHTML = '<span>👁️ Yönerge Panelini Gizle</span>';
+        }
+
+        // Tüm sağ panelleri kapat (missions.setUIState sonra açar)
+        ['sensorLabPanel', 'missionsHubPanel', 'calibrationPanel', 'comparePanel', 'freeExplorePanel', 'missionPanel', 'trackBuilderPanel'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+
+        // Sol palet & edit paneli sadece montaj aşamalarında
+        const isBuildStage = this.currentStage === 'tutorial' || this.currentStage === 'custom_build';
+        document.getElementById('partsPalettePanel').classList.toggle('hidden', !isBuildStage);
+        document.getElementById('editControlPanel').classList.toggle('hidden', !isBuildStage);
+        document.getElementById('tutorialGuidanceBanner').classList.toggle('hidden', this.currentStage !== 'tutorial');
+    }
+
+    // ==========================================
     // AŞAMALAR ARASI GEÇİŞ (STAGES)
     // ==========================================
     startTutorial() {
         this.currentStage = 'tutorial';
         this.builder.loadTutorialTemplate();
 
-        // UI panellerini ayarla
         document.getElementById('navStage1Btn').classList.add('nav-active');
         document.getElementById('navStage2Btn').classList.remove('nav-active');
         document.getElementById('navStage3Btn').classList.remove('nav-active');
+        document.getElementById('navMissionCenterBtn').classList.remove('nav-active');
 
-        const workspace = document.querySelector('.main-workspace');
-        if (workspace) workspace.classList.remove('sensor-mode', 'full-canvas-mode');
-
-        const drivingHud = document.getElementById('drivingHud');
-        if (drivingHud) drivingHud.classList.add('hidden');
-
-        const btnTogglePanel = document.getElementById('btnTogglePanel');
-        if (btnTogglePanel) btnTogglePanel.classList.add('hidden');
-
+        this.showSensorsStageChrome(false);
         document.getElementById('partsPalettePanel').classList.remove('hidden');
         document.getElementById('editControlPanel').classList.remove('hidden');
-        document.getElementById('sensorLabPanel').classList.add('hidden');
-        document.getElementById('tutorialGuidanceBanner').classList.remove('hidden');
+
+        this.world.showCompanion(false);
+        this.telemetry.hide();
+
+        // Kamerayı garaja odakla
+        this.controls.target.set(0, 0.2, -30);
+        this.camera.position.set(0, 2.5, -24);
 
         // Tutorial aşamasında parça kutusunu başlangıç parçalarına filtrele
         this.filterPaletteForTutorial(true);
@@ -197,20 +342,18 @@ class RobotLabApp {
         document.getElementById('navStage1Btn').classList.remove('nav-active');
         document.getElementById('navStage2Btn').classList.add('nav-active');
         document.getElementById('navStage3Btn').classList.remove('nav-active');
+        document.getElementById('navMissionCenterBtn').classList.remove('nav-active');
 
-        const workspace = document.querySelector('.main-workspace');
-        if (workspace) workspace.classList.remove('sensor-mode', 'full-canvas-mode');
-
-        const drivingHud = document.getElementById('drivingHud');
-        if (drivingHud) drivingHud.classList.add('hidden');
-
-        const btnTogglePanel = document.getElementById('btnTogglePanel');
-        if (btnTogglePanel) btnTogglePanel.classList.add('hidden');
-
+        this.showSensorsStageChrome(false);
         document.getElementById('partsPalettePanel').classList.remove('hidden');
         document.getElementById('editControlPanel').classList.remove('hidden');
-        document.getElementById('sensorLabPanel').classList.add('hidden');
-        document.getElementById('tutorialGuidanceBanner').classList.add('hidden');
+
+        this.world.showCompanion(false);
+        this.telemetry.hide();
+
+        // Kamerayı garaja odakla
+        this.controls.target.set(0, 0.2, -30);
+        this.camera.position.set(0, 2.5, -24);
 
         // Tüm parçaları göster
         this.filterPaletteForTutorial(false);
@@ -224,29 +367,16 @@ class RobotLabApp {
         document.getElementById('navStage1Btn').classList.remove('nav-active');
         document.getElementById('navStage2Btn').classList.remove('nav-active');
         document.getElementById('navStage3Btn').classList.add('nav-active');
+        document.getElementById('navMissionCenterBtn').classList.remove('nav-active');
 
-        const workspace = document.querySelector('.main-workspace');
-        if (workspace) {
-            workspace.classList.add('sensor-mode');
-            workspace.classList.remove('full-canvas-mode');
-        }
-
-        const drivingHud = document.getElementById('drivingHud');
-        if (drivingHud) drivingHud.classList.remove('hidden');
-
-        const btnTogglePanel = document.getElementById('btnTogglePanel');
-        if (btnTogglePanel) {
-            btnTogglePanel.classList.remove('hidden');
-            btnTogglePanel.innerHTML = '<span>👁️ Yönerge Panelini Gizle</span>';
-        }
-
-        document.getElementById('partsPalettePanel').classList.add('hidden');
-        document.getElementById('editControlPanel').classList.add('hidden');
+        this.showSensorsStageChrome(true);
         document.getElementById('sensorLabPanel').classList.remove('hidden');
-        document.getElementById('tutorialGuidanceBanner').classList.add('hidden');
 
         // Soket göstergelerini kaldır
         this.builder.updateSocketIndicators();
+
+        this.world.showCompanion(true);
+        this.telemetry.show();
 
         // 3D Test Parkuruna KOŞARAK GEÇİŞ (Sinematik)
         this.sensorLab.runToPark();
@@ -289,17 +419,27 @@ class RobotLabApp {
         // 1. Üst Navigasyon Butonları
         document.getElementById('navStage1Btn').addEventListener('click', () => {
             if (window.KidAudio) window.KidAudio.playClick();
+            this.trackBuilder.exit();
             this.startTutorial();
         });
 
         document.getElementById('navStage2Btn').addEventListener('click', () => {
             if (window.KidAudio) window.KidAudio.playClick();
+            this.trackBuilder.exit();
             this.startCustomBuild();
         });
 
         document.getElementById('navStage3Btn').addEventListener('click', () => {
             if (window.KidAudio) window.KidAudio.playClick();
+            this.trackBuilder.exit();
             this.startSensorLab();
+        });
+
+        // YENİ: Görev Merkezi nav butonu
+        document.getElementById('navMissionCenterBtn').addEventListener('click', () => {
+            if (window.KidAudio) window.KidAudio.playClick();
+            this.trackBuilder.exit();
+            this.startMissionCenter();
         });
 
         // 2. Ses & Konuşma Butonları
@@ -555,7 +695,11 @@ class RobotLabApp {
         // 9. Klavye ile Robot Sürüşü (W-A-S-D / Yön Tuşları / H / L / Boşluk)
         window.addEventListener('keydown', e => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            if (this.currentStage !== 'sensor_lab' || !this.sensorLab) return;
+            if (!this.sensorLab) return;
+
+            // Klasik parkur modu veya Görev Merkezi modunda sürüş aktif
+            const drivingMode = this.currentStage === 'sensor_lab' || this.currentStage === 'missions';
+            if (!drivingMode) return;
 
             let handled = false;
             switch (e.key) {
@@ -601,11 +745,13 @@ class RobotLabApp {
                     handled = true;
                     break;
                 case ' ':
-                    // Boşluk tuşu: Ses istasyonunda dansı, Hareket istasyonunda koşan karakteri, diğerlerinde zıplamayı ve kornayı tetikler
-                    if (this.sensorLab.currentStationIndex === 3) {
-                        this.sensorLab.setSoundStationMode('loud');
-                    } else if (this.sensorLab.currentStationIndex === 4) {
-                        this.sensorLab.runMotionCharacter();
+                    // Boşluk tuşu: klasik parkurda dans/koşu + zıplama; görev merkezinde zıplama
+                    if (this.currentStage === 'sensor_lab') {
+                        if (this.sensorLab.currentStationIndex === 3) {
+                            this.sensorLab.setSoundStationMode('loud');
+                        } else if (this.sensorLab.currentStationIndex === 4) {
+                            this.sensorLab.runMotionCharacter();
+                        }
                     }
                     this.sensorLab.jump();
                     if (window.KidAudio) window.KidAudio.playHonk();
@@ -618,7 +764,9 @@ class RobotLabApp {
         });
 
         window.addEventListener('keyup', e => {
-            if (this.currentStage !== 'sensor_lab' || !this.sensorLab) return;
+            if (!this.sensorLab) return;
+            const drivingMode = this.currentStage === 'sensor_lab' || this.currentStage === 'missions';
+            if (!drivingMode) return;
             switch (e.key) {
                 case 'ArrowUp':
                 case 'w':
@@ -714,7 +862,7 @@ class RobotLabApp {
 
     checkIdleRotate(now) {
         // Sadece montaj modunda (tutorial veya custom_build) auto-rotate uygula
-        if (this.currentStage === 'sensor_lab') {
+        if (this.currentStage === 'sensor_lab' || this.currentStage === 'missions') {
             if (this.idleRotateActive) {
                 this.idleRotateActive = false;
                 this.controls.autoRotate = false;
@@ -748,11 +896,171 @@ class RobotLabApp {
             this.builder.animate(deltaTime);
         }
 
+        // Klasik Sensör Parkuru aşaması
         if (this.currentStage === 'sensor_lab' && this.sensorLab) {
             this.sensorLab.animate(deltaTime);
         }
 
+        // Görev Merkezi aşaması: görev motoru + dünya + parkur yapıcı
+        if (this.currentStage === 'missions') {
+            if (this.trackBuilder) this.trackBuilder.update(deltaTime);
+
+            // Sürüş girdisi var mı? (missions güncellemesi için)
+            const ds = this.sensorLab.driveState;
+            const isDriving = ds.up || ds.down || ds.left || ds.right;
+            const speedRatio = Math.min(1, Math.abs(this.sensorLab.velocity.forward) / this.sensorLab.MAX_SPEED);
+
+            // Sürüş fiziğini missions modunda da uygula (sensorLab'in sürüş bloğu yalnızca kendi aşamasında çalışır)
+            if (this.missions && this.missions.mode !== 'missions_hub_entering') {
+                this.missions.update(deltaTime, isDriving, speedRatio);
+                this._applyMissionDriving(deltaTime);
+            }
+
+            // Sinematik aktifken chase kamerası karışmasın
+            if (!this.world.cinematicActive) {
+                this._missionChaseCamera(deltaTime);
+            }
+        }
+
+        // Canlı dünya güncellemesi (her aşamada dekorlar yaşasın)
+        if (this.world) {
+            const robot = this.builder ? this.builder.robotGroup : null;
+            this.world.update(deltaTime, robot);
+        }
+
+        // Rim ışığı robotun pozisyonunu takip etsin (Pixar kenar parlaması)
+        if (this.builder && this.builder.robotGroup && this.rimLight && this.rimLightTarget) {
+            const rPos = this.builder.robotGroup.position;
+            this.rimLightTarget.position.set(rPos.x, rPos.y + 0.5, rPos.z);
+            this.rimLightTarget.updateMatrixWorld();
+        }
+
+        // Garaj plazma çekirdek nabız efekti
+        if (this.garageGlow && this.currentStage !== 'sensor_lab') {
+            this.garageGlow.intensity = 1.6 + 0.5 * Math.sin(now / 900);
+        }
+
         this.renderer.render(this.scene, this.camera);
+
+    }
+
+    // ==========================================
+    // YENİ: Görev modunda sürüş fiziği uygula
+    // (sensorLab.driveState kullanılır, aynı ivme/decel hissi)
+    // ==========================================
+    _applyMissionDriving(delta) {
+        const robot = this.builder.robotGroup;
+        if (!robot || !this.sensorLab) return;
+        const sl = this.sensorLab;
+        const ds = sl.driveState;
+        const m = this.missions;
+
+        // Otonom görevde kullanıcı sürüşü devre dışı (robot kendi rotasında)
+        if (m.activeMission && m.activeMission.id === 'autonomous') {
+            return;
+        }
+
+        // Dönüş
+        if (ds.left) {
+            sl.velocity.turn += sl.TURN_SPEED;
+        } else if (ds.right) {
+            sl.velocity.turn -= sl.TURN_SPEED;
+        }
+        sl.velocity.turn *= sl.TURN_DECEL;
+        if (Math.abs(sl.velocity.turn) < 0.001) sl.velocity.turn = 0;
+        robot.rotation.y += sl.velocity.turn;
+
+        // İleri / Geri
+        if (ds.up) {
+            sl.velocity.forward = Math.min(sl.velocity.forward + sl.DRIVE_ACCEL, sl.MAX_SPEED);
+        } else if (ds.down) {
+            sl.velocity.forward = Math.max(sl.velocity.forward - sl.DRIVE_ACCEL, -sl.MAX_REVERSE);
+        } else {
+            sl.velocity.forward *= sl.DRIVE_DECEL;
+            if (Math.abs(sl.velocity.forward) < 0.001) sl.velocity.forward = 0;
+        }
+
+        const isMoving = Math.abs(sl.velocity.forward) > 0.002 || Math.abs(sl.velocity.turn) > 0.002;
+
+        // Serbest keşif dışında: mesafe < ~25cm iken otomatik fren (5.3 davranışı)
+        if (m.autobrakeEnabled && m.activeMission !== null && Math.abs(sl.velocity.forward) > 0.001) {
+            const t = m.telemetry.data;
+            if (t.distance < 25 && sl.velocity.forward > 0) {
+                sl.velocity.forward = -0.04;
+                if (window.KidAudio) window.KidAudio.playSensorAlert(0.05);
+            }
+        }
+
+        if (Math.abs(sl.velocity.forward) > 0.001) {
+            robot.position.x += Math.sin(robot.rotation.y) * sl.velocity.forward;
+            robot.position.z += Math.cos(robot.rotation.y) * sl.velocity.forward;
+        }
+
+        // Oyun hissi: pitch/roll + toz
+        if (isMoving) {
+            robot.position.y = Math.abs(Math.sin(performance.now() * 0.012)) * 0.05;
+            const targetPitch = sl.velocity.forward * 0.5;
+            robot.rotation.x = THREE.MathUtils.lerp(robot.rotation.x, targetPitch, 0.1);
+            const targetRoll = -sl.velocity.turn * 3.5;
+            robot.rotation.z = THREE.MathUtils.lerp(robot.rotation.z, targetRoll, 0.1);
+            if (Math.random() < Math.abs(sl.velocity.forward) * 3) {
+                sl.spawnDustParticle(robot.position.clone().add(new THREE.Vector3(0, -0.4, 0)));
+            }
+            robot.traverse(child => {
+                if (child.name && child.name.includes('wheel')) {
+                    child.rotation.x += sl.velocity.forward * 1.5;
+                }
+            });
+        } else {
+            robot.rotation.x = THREE.MathUtils.lerp(robot.rotation.x, 0, 0.1);
+            robot.rotation.z = THREE.MathUtils.lerp(robot.rotation.z, 0, 0.1);
+        }
+
+        // Zıplama fiziği
+        if (sl.isJumping) {
+            sl.verticalVelocity += sl.GRAVITY;
+            robot.position.y += sl.verticalVelocity;
+            if (robot.position.y <= 0) {
+                robot.position.y = 0;
+                sl.isJumping = false;
+                sl.verticalVelocity = 0;
+            }
+        }
+
+        // Sınırlar (missions alanı)
+        robot.position.x = Math.max(-22, Math.min(22, robot.position.x));
+        robot.position.z = Math.max(-8, Math.min(34, robot.position.z));
+    }
+
+    // ==========================================
+    // YENİ: Görev modu takip kamerası (sensorLab chase benzeri)
+    // ==========================================
+    _missionChaseCamera(delta) {
+        const robot = this.builder.robotGroup;
+        if (!robot || this.userOrbiting) return;
+        const sl = this.sensorLab;
+
+        const idealOffset = new THREE.Vector3(
+            -Math.sin(robot.rotation.y) * 4.5,
+            2.0,
+            -Math.cos(robot.rotation.y) * 4.5
+        );
+        const speedWarp = Math.abs(sl.velocity.forward) * 3.0;
+        idealOffset.add(new THREE.Vector3(-Math.sin(robot.rotation.y) * speedWarp, 0, -Math.cos(robot.rotation.y) * speedWarp));
+
+        const idealCamPos = robot.position.clone().add(idealOffset);
+        this.camera.position.lerp(idealCamPos, 0.05);
+
+        const idealTarget = robot.position.clone().add(new THREE.Vector3(
+            Math.sin(robot.rotation.y) * 2.0,
+            0.5,
+            Math.cos(robot.rotation.y) * 2.0
+        ));
+        this.controls.target.lerp(idealTarget, 0.08);
+
+        const targetFov = 45 + (Math.abs(sl.velocity.forward) / sl.MAX_SPEED) * 5;
+        this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, 0.05);
+        this.camera.updateProjectionMatrix();
     }
 }
 

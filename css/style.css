@@ -1102,6 +1102,694 @@ body {
 }
 
 /* ===================================================
+   4. GÖREV MERKEZİ (MISSION HUB) — NAV BUTONU
+   =================================================== */
+.nav-mission-btn {
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+    color: #fff;
+    border-color: #7c3aed;
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.35);
+}
+.nav-mission-btn.nav-active {
+    border-color: var(--c-navy);
+    transform: translateY(-1px);
+}
+
+/* ===================================================
+   5.8 SEVİYE KARTLARI (LEVEL CARDS)
+   =================================================== */
+.level-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.level-card {
+    background: #fffdf7;
+    border: 2px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+.level-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--c-yellow);
+    box-shadow: 0 6px 14px rgba(255, 211, 78, 0.25);
+}
+
+.level-card.level-mint:hover { border-color: var(--c-mint); }
+.level-card.level-coral:hover { border-color: var(--c-coral); }
+.level-card.level-sky:hover { border-color: var(--c-sky); }
+.level-card.level-pink:hover { border-color: var(--c-pink); }
+
+.level-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.level-card-icon { font-size: 22px; }
+
+.level-card-name {
+    font-weight: 700;
+    font-size: 13.5px;
+    color: var(--c-navy);
+}
+
+.level-card-desc {
+    font-size: 12px;
+    color: var(--c-text-muted);
+    line-height: 1.4;
+}
+
+.level-card-status {
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+.level-card-status.done { color: #16a34a; }
+.level-card-status.todo { color: #94a3b8; }
+
+/* Hızlı araç kutuları */
+.quick-tools-box {
+    background: #fffdf7;
+    border: 2px dashed #e2e8f0;
+    border-radius: 14px;
+    padding: 10px 12px;
+    margin-top: 4px;
+}
+
+/* ===================================================
+   5.9 ROZET RAFI (BADGE SHELF)
+   =================================================== */
+.badge-shelf {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.badge-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 4px;
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    background: #f8fafc;
+    transition: all 0.2s ease;
+}
+
+.badge-item.badge-owned {
+    background: linear-gradient(135deg, #fef9c3, #fef08a);
+    border-color: var(--c-yellow);
+    box-shadow: 0 3px 10px rgba(255, 211, 78, 0.35);
+    animation: badge-pop 0.5s ease;
+}
+
+.badge-item.badge-locked {
+    opacity: 0.55;
+    filter: grayscale(0.6);
+}
+
+.badge-icon { font-size: 22px; }
+.badge-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--c-navy);
+    text-align: center;
+}
+
+@keyframes badge-pop {
+    0% { transform: scale(0.5); }
+    60% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
+/* ===================================================
+   5.17 HAVA DURUMU BUTONLARI
+   =================================================== */
+.weather-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.weather-btn {
+    background: #f1f5f9;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 5px 10px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-navy);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.weather-btn:hover { border-color: var(--c-sky); }
+
+.weather-btn.weather-active {
+    background: var(--c-sky);
+    border-color: #0284c7;
+    color: #0c4a6e;
+    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.4);
+}
+
+/* ===================================================
+   5.1 TELEMETRİ PANELİ (yüzen hologram HUD)
+   =================================================== */
+.telemetry-panel {
+    position: fixed;
+    left: 14px;
+    top: 86px;
+    width: 250px;
+    background: linear-gradient(160deg, rgba(10, 18, 38, 0.92), rgba(15, 23, 42, 0.88));
+    border: 2px solid rgba(56, 189, 248, 0.5);
+    border-radius: 16px;
+    padding: 10px 12px;
+    z-index: 60;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 18px rgba(56,189,248,0.18) inset;
+    pointer-events: none;
+    animation: holo-flicker 4s ease-in-out infinite;
+}
+
+@keyframes holo-flicker {
+    0%, 100% { opacity: 1; }
+    92% { opacity: 1; }
+    94% { opacity: 0.88; }
+    96% { opacity: 1; }
+}
+
+.tele-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+    margin-bottom: 8px;
+}
+
+.tele-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: #7dd3fc;
+    letter-spacing: 1px;
+    flex: 1;
+}
+
+.tele-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px 8px;
+}
+
+.tele-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(56, 189, 248, 0.08);
+    border-radius: 8px;
+    padding: 4px 7px;
+}
+
+.tele-item-wide { grid-column: span 2; justify-content: space-between; }
+
+.tele-icon { font-size: 12px; }
+
+.tele-label {
+    font-size: 9.5px;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    flex: 1;
+}
+
+.tele-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 10.5px;
+    color: #e0f2fe;
+    white-space: nowrap;
+}
+
+.tele-val.ok { color: #4ade80; }
+.tele-val.warn { color: #fbbf24; }
+.tele-val.idle { color: #94a3b8; }
+.tele-val.active { color: #38bdf8; }
+
+.tele-val-inline { display: flex; align-items: center; gap: 4px; }
+
+.rgb-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.4);
+    background: rgb(128,128,128);
+    display: inline-block;
+}
+
+.motor-bar-track {
+    flex: 1;
+    height: 6px;
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.motor-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #52d4b6, #38bdf8);
+    border-radius: 4px;
+    transition: width 0.2s ease;
+}
+
+.tele-motors-lr {
+    font-family: 'Space Mono', monospace;
+    font-size: 9.5px;
+    color: #94a3b8;
+}
+
+.battery-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.battery-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.4s ease;
+}
+
+.battery-fill.batt-ok { background: linear-gradient(90deg, #4ade80, #22c55e); }
+.battery-fill.batt-mid { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+.battery-fill.batt-low { background: linear-gradient(90deg, #f87171, #ef4444); animation: batt-blink 0.8s ease-in-out infinite; }
+
+@keyframes batt-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.charging-pulse { animation: charge-pulse 1s ease-in-out infinite; }
+
+@keyframes charge-pulse {
+    0%, 100% { color: #fbbf24; }
+    50% { color: #4ade80; }
+}
+
+/* ===================================================
+   5.3 ALGORİTMA KUTUSU (MISSION CODE)
+   =================================================== */
+.mission-code-box {
+    background: #0f172a;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin: 10px 0;
+    border: 2px solid #334155;
+}
+
+.code-line {
+    font-family: 'Space Mono', monospace;
+    color: #4ade80;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.code-arrow { color: #38bdf8; font-size: 12px; }
+
+.mission-code-box.algo-running {
+    border-color: #4ade80;
+    box-shadow: 0 0 16px rgba(74, 222, 128, 0.35);
+    animation: algo-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes algo-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(74, 222, 128, 0.2); }
+    50% { box-shadow: 0 0 20px rgba(74, 222, 128, 0.5); }
+}
+
+.mission-status-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--c-text);
+    background: #eef2ff;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+}
+
+.ai-decision-line {
+    display: block;
+    background: #0f172a;
+    color: #a5f3fc;
+    font-family: 'Space Mono', monospace;
+    font-size: 11.5px;
+    border-radius: 8px;
+    padding: 5px 8px;
+    margin-top: 5px;
+    animation: slide-in 0.3s ease;
+}
+
+@keyframes slide-in {
+    from { transform: translateX(-10px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.mission-progress-track {
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.mission-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--c-mint), var(--c-yellow));
+    border-radius: 6px;
+    transition: width 0.4s ease;
+}
+
+/* ===================================================
+   5.2 KALİBRASYON PANELİ
+   =================================================== */
+.cal-tab-bar {
+    display: flex;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.cal-tab-btn {
+    flex: 1;
+    background: #f1f5f9;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 6px 4px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--c-navy);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.cal-tab-btn.cal-tab-active {
+    background: var(--c-sky);
+    border-color: #0284c7;
+    color: #0c4a6e;
+}
+
+.cal-subpanel {
+    margin-top: 6px;
+}
+
+.cal-dist-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.cal-dist-btn {
+    background: #fff;
+    border: 2px solid #e2e8f0;
+    border-radius: 9px;
+    padding: 7px 2px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--c-navy);
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+.cal-dist-btn:hover {
+    border-color: var(--c-coral);
+    background: #fff7ed;
+    transform: translateY(-1px);
+}
+
+.cal-question-box {
+    background: #fefce8;
+    border: 2px dashed var(--c-yellow);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-top: 10px;
+}
+
+.cal-graph-box {
+    background: #0f172a;
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-top: 10px;
+}
+
+.cal-graph-box .box-label { color: #7dd3fc; }
+
+.cal-graph-bar-track {
+    position: relative;
+    height: 22px;
+    background: rgba(148, 163, 184, 0.15);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+}
+
+.graph-bar {
+    display: block;
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+}
+
+.graph-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10.5px;
+    color: #e2e8f0;
+    padding-left: 8px;
+}
+
+.cal-real-text {
+    font-size: 12px;
+    color: #cbd5e1;
+    margin-top: 8px;
+    line-height: 1.4;
+}
+
+.rgb-preview {
+    width: 100%;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+/* ===================================================
+   5.14 KARŞILAŞTIRMA LABI
+   =================================================== */
+.compare-readout {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.compare-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 13px;
+}
+
+.compare-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 8px;
+    color: #fff;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.compare-badge.ultrasonic { background: #0ea5e9; }
+.compare-badge.ir { background: #f97316; }
+
+.compare-note {
+    font-size: 12px;
+    color: var(--c-text-muted);
+    background: #fefce8;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin-top: 6px;
+}
+
+/* ===================================================
+   5.7 SERBEST KEŞİF ARAÇLARI
+   =================================================== */
+.free-tools-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-top: 6px;
+}
+
+.free-tool-btn {
+    background: #fff;
+    border: 2px solid #e2e8f0;
+    border-radius: 11px;
+    padding: 9px 8px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--c-navy);
+    cursor: pointer;
+    transition: all 0.12s ease;
+    text-align: left;
+}
+
+.free-tool-btn:hover {
+    border-color: var(--c-mint);
+    background: #f0fdfa;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(82, 212, 182, 0.25);
+}
+
+/* ===================================================
+   5.15 PARKUR YAPICI ARAÇLARI
+   =================================================== */
+.tb-tools-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-top: 6px;
+}
+
+.tb-tool-btn {
+    background: #fff;
+    border: 2px solid #e2e8f0;
+    border-radius: 11px;
+    padding: 9px 8px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--c-navy);
+    cursor: pointer;
+    transition: all 0.12s ease;
+    text-align: left;
+}
+
+.tb-tool-btn:hover { border-color: var(--c-sky); background: #f0f9ff; }
+
+.tb-tool-btn.tb-tool-active {
+    background: var(--c-sky);
+    border-color: #0284c7;
+    color: #0c4a6e;
+    box-shadow: 0 3px 10px rgba(56, 189, 248, 0.35);
+}
+
+/* ===================================================
+   5.10 GÖREV RAPORU MODALI
+   =================================================== */
+.report-frame {
+    background: #fffdf7;
+    border: 3px solid var(--c-navy);
+    border-radius: 16px;
+    padding: 18px 20px;
+}
+
+.report-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 20px;
+    color: var(--c-navy);
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.report-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.report-section {
+    background: #f1f5f9;
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.report-big {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    color: var(--c-navy);
+    font-weight: 700;
+}
+
+.report-sensor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 5px;
+}
+
+.report-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    color: var(--c-text);
+    background: #f8fafc;
+    border-radius: 7px;
+    padding: 4px 8px;
+}
+
+.report-check.yes { color: #16a34a; font-weight: 700; }
+.report-check.no { color: #94a3b8; }
+
+.report-energy-summary {
+    display: flex;
+    justify-content: space-around;
+    background: #ecfdf5;
+    border: 2px solid var(--c-mint);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-top: 10px;
+    font-size: 12.5px;
+    color: #064e3b;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* ===================================================
    RESPONSIVE UYUMLULUK (TABLET & MOBİL)
    =================================================== */
 @media (max-width: 1024px) {

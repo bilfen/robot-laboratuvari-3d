@@ -777,6 +777,10 @@ class SensorLaboratory {
         this.updateTelemetry('🏃 [PIR Sensör]: HAREKETLİ NESNE ALGILANDI! (Takip ediliyor)');
         this.markStationDone('motion');
         if (window.KidAudio) window.KidAudio.playSuccess();
+        // Sinematik: Hareketli hedef takibi (5.11)
+        if (window.app && window.app.world && !window.app.world.cinematicActive && window.app.builder) {
+            window.app.world.playCinematic('target_follow', window.app.builder.robotGroup);
+        }
 
         const moveInterval = setInterval(() => {
             if (!this.movingCharacter) {
@@ -834,6 +838,10 @@ class SensorLaboratory {
             this.updateTelemetry('🔵 [Renk Sensörü]: HEDEF BULUNDU: MAVİ | ONAYLANDI ✅');
             this.markStationDone('color');
             if (window.KidAudio) window.KidAudio.playSuccess();
+            // Sinematik: RGB renk algılama (5.11)
+            if (window.app && window.app.world && !window.app.world.cinematicActive && window.app.builder) {
+                window.app.world.playCinematic('color_detect', window.app.builder.robotGroup);
+            }
 
             targetGroup.position.y = -0.2;
             setTimeout(() => { targetGroup.position.y = -0.7; }, 600);
@@ -952,6 +960,11 @@ class SensorLaboratory {
                 const currentSt = this.stations[this.currentStationIndex];
                 this.builder.robotGroup.position.copy(currentSt.pos);
                 this.builder.robotGroup.rotation.set(0, 0, 0); // Kameraya dönsün
+
+                // Sinematik: Kamera kullanıcıyı etkilemeden kısa kutlama açısı (5.11)
+                if (window.app && window.app.world && !window.app.world.cinematicActive) {
+                    window.app.world.playCinematic('mission_complete', this.builder.robotGroup);
+                }
 
                 // Yumuşak kamera geçişi başlat
                 this.startCameraTransition(
@@ -1109,6 +1122,10 @@ class SensorLaboratory {
                     this.updateTelemetry(`🚨 [Mesafe]: ${cm} cm | ÇOK YAKIN! Acil Fren Devrede!`);
                     this.markStationDone('distance');
                     this.driveState.up = false; 
+                    // Sinematik: Acil fren anı (5.11)
+                    if (window.app && window.app.world && !window.app.world.cinematicActive) {
+                        window.app.world.playCinematic('brake', robot);
+                    }
                 } else if (dist < 3.5 && this.velocity.forward > 0) {
                     // Yaklaştıkça hızlanan uyarı sesi
                     if (Math.random() < 0.05 && window.KidAudio) window.KidAudio.playClick();
@@ -1124,6 +1141,10 @@ class SensorLaboratory {
                     if (window.KidAudio) window.KidAudio.playSnap();
                     this.setLightStationMode('dark');
                     this.updateTelemetry(`💡 [Işık]: Karanlık Algılandı -> Farlar Otomatik Açıldı`);
+                    // Sinematik: İlk sensör algılaması (5.11)
+                    if (window.app && window.app.world && !window.app.world.cinematicActive) {
+                        window.app.world.playCinematic('first_detection', robot);
+                    }
                 } else if (!inTunnel && this.isHeadlightsOn && Math.abs(robot.position.x - 14) > 3.0) {
                     this.toggleHeadlights(); // Farları kapa
                     this.updateTelemetry(`[Işık]: Aydınlık ortam`);
